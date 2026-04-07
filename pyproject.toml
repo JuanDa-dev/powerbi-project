@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "powerbi-eda-tool"
+version = "0.1.0"
+description = "Exploratory Data Analysis tool for Power BI projects"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    {name = "PowerBI EDA Team"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "python-dateutil>=2.8.2",
+    "pandas>=2.0.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "networkx>=3.1",
+    "pillow>=10.0.0",
+    "pydot>=1.4.2",
+    "markdown>=3.4.0",
+    "click>=8.1.0",
+    "rich>=13.0.0",
+    "tqdm>=4.65.0",
+    "colorama>=0.4.6",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+pbi-eda = "pbi_mcp_enhanced.main:main"
