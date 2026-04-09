@@ -61,10 +61,16 @@ class PBIPAnalyzer:
         if not self.pbip_path.exists():
             raise FileNotFoundError(f"PBIP path does not exist: {self.pbip_path}")
         
+        if self.pbip_path.is_file():
+            # Accept a .pbip pointer file directly
+            if self.pbip_path.suffix.lower() != '.pbip':
+                raise ValueError(f"File must have .pbip extension: {self.pbip_path}")
+            return
+
         if not self.pbip_path.is_dir():
-            raise ValueError(f"PBIP path must be a directory: {self.pbip_path}")
+            raise ValueError(f"PBIP path must be a .pbip file or directory: {self.pbip_path}")
         
-        # Check for required structure
+        # Check for required structure in a directory
         required_dirs = ['semantic-model', 'report']
         missing = [d for d in required_dirs if not (self.pbip_path / d).exists()]
         
@@ -214,6 +220,9 @@ Examples:
   python main.py ./my-project.pbip -o ./reports
   python main.py ./my-project.pbip --verbose
 
+  # Also accepts a project directory (legacy):
+  python main.py ./my-project.pbip/ -o ./reports
+
 The tool will generate:
   - Markdown report with comprehensive analysis
   - PNG visualizations (relationship diagrams, charts)
@@ -221,7 +230,7 @@ The tool will generate:
         """
     )
     
-    parser.add_argument('pbip_path', type=str, help='Path to .pbip project directory')
+    parser.add_argument('pbip_path', type=str, help='Path to .pbip project file or directory')
     parser.add_argument('-o', '--output', type=str, default='output',
                         help='Output directory for reports and charts (default: output/)')
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose logging')

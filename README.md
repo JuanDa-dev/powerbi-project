@@ -59,7 +59,7 @@ pip install -r requirements.txt
 **Basic usage:**
 ```bash
 cd pbi-mcp-enhanced
-python main.py <path-to-pbip-project>
+python main.py <path-to-pbip-file>
 ```
 
 **With custom output directory:**
@@ -76,7 +76,7 @@ python main.py ./my-project.pbip --verbose
 
 ```
 positional arguments:
-  pbip_path             Path to .pbip project directory
+  pbip_path             Path to .pbip project file or directory
 
 optional arguments:
   -h, --help            Show help message
@@ -92,19 +92,22 @@ optional arguments:
 
 ### What is a .pbip Project?
 
-A `.pbip` (Power BI Project) is a directory-based format for version control-friendly Power BI development.
+A `.pbip` (Power BI Project) file is a JSON pointer that references a version control-friendly Power BI project made up of sibling folders.
 
 **Required structure:**
 ```
-my-project.pbip/
-├── semantic-model/
-│   └── model.bim          # JSON tabular model
-└── report/
-    ├── definition.pbir    # Report definition
-    └── definition.pbism   # Dataset metadata
+my-project/
+├── my-project.pbip        # JSON pointer file (pass this to the tool)
+├── my-project.Report/
+│   └── definition.pbir    # Report definition
+└── my-project.SemanticModel/
+    ├── definition.pbism   # Dataset metadata
+    └── model.bim          # JSON tabular model
 ```
 
-Works with **local .pbip directories** - no Power BI Desktop or Fabric connection required.
+Pass the `.pbip` file directly to the tool — no need to point at a directory.
+
+Works with **local .pbip files** - no Power BI Desktop or Fabric connection required.
 
 ---
 

@@ -32,16 +32,21 @@ class PBIPParser:
         Initialize the PBIP parser
         
         Args:
-            pbip_path: Path to the .pbip project directory
+            pbip_path: Path to the .pbip project file or directory
         """
         self.pbip_path = Path(pbip_path)
         self.structure: Optional[PBIPStructure] = None
+        self._is_pbip_file = False
         
         if not self.pbip_path.exists():
             raise FileNotFoundError(f"PBIP project not found: {pbip_path}")
         
-        if not self.pbip_path.is_dir():
-            raise ValueError(f"PBIP path must be a directory: {pbip_path}")
+        if self.pbip_path.is_file():
+            if self.pbip_path.suffix.lower() != '.pbip':
+                raise ValueError(f"File must have .pbip extension: {pbip_path}")
+            self._is_pbip_file = True
+        elif not self.pbip_path.is_dir():
+            raise ValueError(f"PBIP path must be a .pbip file or directory: {pbip_path}")
     
     def parse(self) -> PBIPStructure:
         """
@@ -52,55 +57,76 @@ class PBIPParser:
         """
         errors = []
         warnings = []
-        
-        # Look for report definition
-        report_def = self._find_file("report/definition.pbir")
+
+        # When given a .pbip file, the Report and SemanticModel folders are
+        # siblings of the file named "{stem}.Report" and "{stem}.SemanticModel".
+        if self._is_pbip_file:
+            project_root = self.pbip_path.parent
+            stem = self.pbip_path.stem
+            report_def = self._check_path(project_root / f"{stem}.Report" / "definition.pbir")
+            model_bim = self._check_path(project_root / f"{stem}.SemanticModel" / "model.bim")
+            dataset_def = self._check_path(project_root / f"{stem}.SemanticModel" / "definition.pbism")
+            model_tmdl_candidate = project_root / f"{stem}.SemanticModel" / "definition"
+            model_tmdl = model_tmdl_candidate if model_tmdl_candidate.is_dir() else None
+            # Fallback: legacy folder names without stem prefix
+            if not report_def:
+                report_def = self._check_path(project_root / "report" / "definition.pbir")
+            if not model_bim:
+                model_bim = self._check_path(project_root / "semantic-model" / "model.bim")
+            if not dataset_def:
+                dataset_def = self._check_path(project_root / "semantic-model" / "definition.pbism")
+            if not model_tmdl:
+                tmdl_legacy = project_root / "semantic-model" / "definition"
+                model_tmdl = tmdl_legacy if tmdl_legacy.is_dir() else None
+            root_path = project_root
+        else:
+            # Directory-based project: look inside the directory first, then check
+            # for a sibling "{stem}.SemanticModel" folder (modern Power BI format).
+            report_def = self._find_file("report/definition.pbir")
+            model_bim = self._find_file("semantic-model/model.bim")
+            dataset_def = self._find_file("semantic-model/definition.pbism")
+
+            # Alternative locations
+            if not model_bim:
+                model_bim = self._find_file("*.Dataset/model.bim")
+            if not dataset_def:
+                dataset_def = self._find_file("*.Dataset/definition.pbidataset")
+
+            # Look for TMDL format (alternative to model.bim)
+            model_tmdl = self._find_directory("semantic-model/definition")
+
+            # Check for sibling .SemanticModel folder (e.g. "Name.SemanticModel" next
+            # to a "Name.pbip" directory) — used in the modern Power BI project layout.
+            if not model_bim and not model_tmdl:
+                semantic_folders = list(self.pbip_path.parent.glob(f"{self.pbip_path.stem}.SemanticModel"))
+                if semantic_folders:
+                    semantic_folder = semantic_folders[0]
+                    model_bim_alt = semantic_folder / "model.bim"
+                    if model_bim_alt.exists():
+                        model_bim = model_bim_alt
+                    tmdl_alt = semantic_folder / "definition"
+                    if tmdl_alt.exists() and tmdl_alt.is_dir():
+                        model_tmdl = tmdl_alt
+            if not model_tmdl:
+                model_tmdl = self._find_directory("*.Dataset/definition")
+
+            root_path = self.pbip_path
+
         has_report = report_def is not None
-        
+        has_semantic_model = model_bim is not None or dataset_def is not None
+
         if not has_report:
             warnings.append("No report definition found (report/definition.pbir)")
-        
-        # Look for semantic model
-        model_bim = self._find_file("semantic-model/model.bim")
-        dataset_def = self._find_file("semantic-model/definition.pbism")
-        
-        # Alternative locations
-        if not model_bim:
-            model_bim = self._find_file("*.Dataset/model.bim")
-        
-        if not dataset_def:
-            dataset_def = self._find_file("*.Dataset/definition.pbidataset")
-        
-        has_semantic_model = model_bim is not None or dataset_def is not None
-        
+
         if not has_semantic_model:
             errors.append("No semantic model found (model.bim or definition.pbism)")
-        
-        # Look for TMDL format (alternative to model.bim)
-        model_tmdl = self._find_directory("semantic-model/definition")
-        
-        # Check for .SemanticModel folder (modern format)
-        if not model_bim and not model_tmdl:
-            semantic_folders = list(self.pbip_path.parent.glob(f"{self.pbip_path.stem}.SemanticModel"))
-            if semantic_folders:
-                semantic_folder = semantic_folders[0]
-                # Try model.bim in this folder
-                model_bim_alt = semantic_folder / "model.bim"
-                if model_bim_alt.exists():
-                    model_bim = model_bim_alt
-                # Try TMDL
-                tmdl_alt = semantic_folder / "definition"
-                if tmdl_alt.exists() and tmdl_alt.is_dir():
-                    model_tmdl = tmdl_alt
-        if not model_tmdl:
-            model_tmdl = self._find_directory("*.Dataset/definition")
-        
+
         # Validate minimum requirements
         if not has_report and not has_semantic_model:
             errors.append("Invalid PBIP structure: neither report nor semantic model found")
-        
+
         self.structure = PBIPStructure(
-            root_path=self.pbip_path,
+            root_path=root_path,
             has_report=has_report,
             has_semantic_model=has_semantic_model,
             report_definition_path=report_def,
@@ -110,12 +136,16 @@ class PBIPParser:
             errors=errors,
             warnings=warnings
         )
-        
+
         return self.structure
     
+    def _check_path(self, path: Path) -> Optional[Path]:
+        """Return path if it exists as a file, otherwise None"""
+        return path if path.is_file() else None
+
     def _find_file(self, pattern: str) -> Optional[Path]:
         """
-        Find a file matching the pattern within the PBIP project
+        Find a file matching the pattern within the PBIP project directory
         
         Args:
             pattern: File pattern (can include wildcards)
@@ -123,13 +153,14 @@ class PBIPParser:
         Returns:
             Path to the file if found, None otherwise
         """
+        base = self.pbip_path if self.pbip_path.is_dir() else self.pbip_path.parent
         if "*" in pattern:
             # Use glob for wildcard patterns
-            matches = list(self.pbip_path.glob(pattern))
+            matches = list(base.glob(pattern))
             return matches[0] if matches else None
         else:
             # Direct path
-            file_path = self.pbip_path / pattern
+            file_path = base / pattern
             return file_path if file_path.exists() else None
     
     def _find_directory(self, pattern: str) -> Optional[Path]:
@@ -142,12 +173,13 @@ class PBIPParser:
         Returns:
             Path to the directory if found, None otherwise
         """
+        base = self.pbip_path if self.pbip_path.is_dir() else self.pbip_path.parent
         if "*" in pattern:
-            matches = list(self.pbip_path.glob(pattern))
+            matches = list(base.glob(pattern))
             matches = [m for m in matches if m.is_dir()]
             return matches[0] if matches else None
         else:
-            dir_path = self.pbip_path / pattern
+            dir_path = base / pattern
             return dir_path if dir_path.is_dir() else None
     
     def get_structure(self) -> PBIPStructure:
