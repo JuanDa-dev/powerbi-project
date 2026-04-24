@@ -1,2 +1,53 @@
 **/.pbi/localSettings.json
 **/.pbi/cache.abf
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Generated outputs (from main.py - these are recreated on each run)
+table_classifications_refined.json
+table_classifications.json
+table_classifications_export.jsonl
+relationship_analysis.json
+documentation_metadata.json
+TECHNICAL_DOCUMENTATION.md
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+
+# Old/deprecated scripts (functionality now integrated in main.py)
+extract_and_classify.py
+refine_classifications.py
+analyze_relationships.py
+generate_documentation.py
