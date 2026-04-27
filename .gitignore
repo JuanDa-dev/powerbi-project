@@ -33,26 +33,14 @@ wheels/
 *.swo
 *~
 
-# Generated outputs (from main.py - these are recreated on each run)
-table_classifications_refined.json
-table_classifications.json
-table_classifications_export.jsonl
-relationship_analysis.json
-report_analysis.json
-documentation_metadata.json
+# Generated outputs (from main.py - recreated on each run)
+powerbi-project/
+*.json
 TECHNICAL_DOCUMENTATION.md
-
-# Generated outputs from pbi-mcp-enhanced (regenerated on each run)
-pbi-mcp-enhanced/output/
+powerbi_analysis_*.md
 
 # Temporary files
 *.tmp
 *.temp
 .DS_Store
 
-# Old/deprecated scripts (functionality now integrated in main.py)
-extract_and_classify.py
-refine_classifications.py
-analyze_relationships.py
-generate_documentation.py
-main_old.py
