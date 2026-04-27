@@ -41,6 +41,9 @@ relationship_analysis.json
 documentation_metadata.json
 TECHNICAL_DOCUMENTATION.md
 
+# Generated outputs from pbi-mcp-enhanced (regenerated on each run)
+pbi-mcp-enhanced/output/
+
 # Temporary files
 *.tmp
 *.temp
