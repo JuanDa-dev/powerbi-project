@@ -14,6 +14,7 @@ from .tables_generator import TablesSectionGenerator
 from .measures_generator import MeasuresSectionGenerator
 from .relationships_generator import RelationshipsSectionGenerator
 from .recommendations_generator import RecommendationsGenerator
+from .datatype_generator import DataTypeTableGenerator
 
 
 class ReportExporter:
@@ -38,6 +39,7 @@ class ReportExporter:
                measures_gen: MeasuresSectionGenerator,
                relationships_gen: RelationshipsSectionGenerator,
                recommendations_gen: Optional[RecommendationsGenerator] = None,
+               datatype_gen: Optional[DataTypeTableGenerator] = None,
                image_paths: Optional[dict] = None) -> str:
         """
         Assemble and export report
@@ -49,9 +51,9 @@ class ReportExporter:
             measures_gen: Measures generator
             relationships_gen: Relationships generator
             recommendations_gen: Recommendations generator (optional)
+            datatype_gen: Data type table generator (optional)
             image_paths: Dictionary of image paths for embedding
                 - relationship_diagram: path to relationship diagram
-                - data_type_chart: path to data type chart
                 - measure_dependencies: path to measure dependency graph
                 - table_complexity: path to table complexity chart
         
@@ -89,10 +91,9 @@ class ReportExporter:
             diagram_path=image_paths.get('relationship_diagram')
         ))
         
-        # Data Type Distribution
-        if image_paths.get('data_type_chart'):
-            sections.append("## Data Type Distribution\n")
-            sections.append(f"![Data Types]({image_paths['data_type_chart']})\n")
+        # Data Type Distribution (as table, not chart)
+        if datatype_gen:
+            sections.append(datatype_gen.generate())
         
         # Recommendations
         if recommendations_gen:
@@ -132,7 +133,7 @@ This report was generated automatically by the **Power BI Project EDA Tool**.
 - **Tables Analysis**: Detailed breakdown of fact and dimension tables
 - **Measures Analysis**: DAX complexity and dependency analysis
 - **Relationships Analysis**: Graph structure and connectivity metrics
-- **Data Type Distribution**: Column data type statistics
+- **Data Type Distribution**: Column data type statistics (table format)
 - **Recommendations**: Best practices and optimization suggestions
 
 ### Legend

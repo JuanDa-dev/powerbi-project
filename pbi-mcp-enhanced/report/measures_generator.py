@@ -152,7 +152,12 @@ class MeasuresSectionGenerator:
         ]
         
         for measure in measures:
-            lines.append(f"#### {measure.name}")
+            # Add placeholder label if needed
+            measure_label = measure.name
+            if measure.is_placeholder:
+                measure_label = f"{measure.name} ⚠️ Sin implementar"
+            
+            lines.append(f"#### {measure_label}")
             lines.append(f"- **Table**: {measure.table}")
             lines.append(f"- **Complexity Score**: {measure.complexity_score:.2f}")
             lines.append(f"- **Expression Length**: {measure.expression_length} characters")
@@ -170,11 +175,14 @@ class MeasuresSectionGenerator:
                     refs += f" (+{len(measure.referenced_measures) - 3} more)"
                 lines.append(f"- **Dependencies**: {refs}")
             
-            # Truncate long expressions
-            expr = measure.expression[:200]
-            if len(measure.expression) > 200:
-                expr += "..."
-            lines.append(f"- **Expression**: `{expr}`")
+            # Show placeholder message or truncated expression
+            if measure.is_placeholder:
+                lines.append(f"- **Expression**: *{measure.name} no tiene expresión DAX implementada*")
+            else:
+                expr = measure.expression[:200]
+                if len(measure.expression) > 200:
+                    expr += "..."
+                lines.append(f"- **Expression**: `{expr}`")
             
             lines.append("")
         

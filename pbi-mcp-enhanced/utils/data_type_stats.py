@@ -81,12 +81,14 @@ class DataTypeAnalyzer:
             for column in (table.columns or []):
                 total_columns += 1
                 dtype = column.data_type or 'Unknown'
-                type_counts[dtype] += 1
-                type_by_table[table.name][dtype] += 1
+                # Clean the dtype: extract just the type name
+                dtype_clean = self._clean_dtype_string(str(dtype))
+                type_counts[dtype_clean] += 1
+                type_by_table[table.name][dtype_clean] += 1
                 
                 # Track calculated columns
                 if column.expression:
-                    calculated_by_type[dtype] += 1
+                    calculated_by_type[dtype_clean] += 1
                 
                 # Track data categories
                 if column.data_category:
@@ -145,63 +147,38 @@ class DataTypeAnalyzer:
         )
         
         return self.stats
-
-        total = len(analyses)
+    
+    def _clean_dtype_string(self, dtype_str: str) -> str:
+        """
+        Clean data type string by extracting just the type name
+        Removes metadata like lineageTag, summarizeBy, sourceColumn, etc
         
-        # Calculate percentages
-        type_percentages = {
-            dtype: round((count / total) * 100, 2)
-            for dtype, count in type_counter.items()
-        }
-        
-        # Find most/least common
-        most_common = type_counter.most_common(1)[0] if type_counter else (None, 0)
-        least_common = type_counter.most_common()[-1] if type_counter else (None, 0)
-        
-        # Categorize types
-        numeric = sum(1 for a in analyses if a.data_type.lower() in self.NUMERIC_TYPES)
-        text = sum(1 for a in analyses if a.data_type.lower() in self.TEXT_TYPES)
-        date = sum(1 for a in analyses if a.data_type.lower() in self.DATE_TYPES)
-        boolean = sum(1 for a in analyses if a.data_type.lower() in self.BOOLEAN_TYPES)
-        other = total - (numeric + text + date + boolean)
-        
-        # Calculated columns by type
-        calculated = [a for a in analyses if a.is_calculated]
-        calc_by_type = Counter(a.data_type for a in calculated)
-        
-        # Data categories
-        categories = Counter(
-            a.data_category for a in analyses
-            if a.data_category is not None
-        )
-        
-        # Build statistics
-        self.stats = DataTypeStats(
-            total_columns=total,
-            data_type_counts=dict(type_counter),
-            data_type_percentages=type_percentages,
+        Args:
+            dtype_str: Raw data type string that may contain metadata
             
-            most_common_type=most_common[0],
-            most_common_count=most_common[1],
-            least_common_type=least_common[0],
-            least_common_count=least_common[1],
-            
-            numeric_columns=numeric,
-            text_columns=text,
-            date_columns=date,
-            boolean_columns=boolean,
-            other_columns=other,
-            
-            numeric_percentage=round((numeric / total) * 100, 2),
-            text_percentage=round((text / total) * 100, 2),
-            date_percentage=round((date / total) * 100, 2),
-            boolean_percentage=round((boolean / total) * 100, 2),
-            
-            calculated_by_type=dict(calc_by_type),
-            data_categories=dict(categories)
-        )
+        Returns:
+            Cleaned data type name
+        """
+        if not dtype_str:
+            return 'Unknown'
         
-        return self.stats
+        # Extract just the first line
+        dtype_clean = dtype_str.split('\n')[0].strip()
+        
+        # Extract just the first tab-separated part
+        dtype_clean = dtype_clean.split('\t')[0].strip()
+        
+        # Extract just the first word/token
+        parts = dtype_clean.split()
+        if parts:
+            dtype_clean = parts[0].strip()
+        
+        # Remove any remaining metadata markers
+        for marker in ['lineageTag', 'summarizeBy', 'sourceColumn', 'formatString']:
+            if marker in dtype_clean:
+                dtype_clean = dtype_clean.split(marker)[0].strip()
+        
+        return dtype_clean if dtype_clean else 'Unknown'
     
     def get_stats(self) -> Optional[DataTypeStats]:
         """Get the generated statistics"""

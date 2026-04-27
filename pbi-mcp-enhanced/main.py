@@ -30,7 +30,7 @@ from report import (
     ReportHeaderGenerator, ExecutiveSummaryGenerator,
     TablesSectionGenerator, MeasuresSectionGenerator,
     RelationshipsSectionGenerator, RecommendationsGenerator,
-    ReportExporter
+    ReportExporter, DataTypeTableGenerator
 )
 
 
@@ -58,21 +58,38 @@ class PBIPAnalyzer:
     
     def _validate_inputs(self):
         """Validate input parameters"""
+        pbip_input = Path(self.pbip_path)
+        
+        # Handle .pbip JSON file input
+        if pbip_input.suffix.lower() == '.pbip' and pbip_input.is_file():
+            if not pbip_input.exists():
+                raise FileNotFoundError(f"PBIP file does not exist: {pbip_input}")
+            
+            # Extract project name and look for associated folders
+            project_name = pbip_input.stem
+            parent_dir = pbip_input.parent
+            
+            semantic_folder = parent_dir / f"{project_name}.SemanticModel"
+            report_folder = parent_dir / f"{project_name}.Report"
+            
+            if not semantic_folder.exists() and not report_folder.exists():
+                raise ValueError(
+                    f"Associated folders not found for: {pbip_input.name}\n"
+                    f"Expected folders:\n"
+                    f"  - {semantic_folder.name}\n"
+                    f"  - {report_folder.name}"
+                )
+            
+            # Convert to directory path for processing
+            self.pbip_path = parent_dir
+            return
+        
+        # Handle directory input
         if not self.pbip_path.exists():
             raise FileNotFoundError(f"PBIP path does not exist: {self.pbip_path}")
         
         if not self.pbip_path.is_dir():
-            raise ValueError(f"PBIP path must be a directory: {self.pbip_path}")
-        
-        # Check for required structure
-        required_dirs = ['semantic-model', 'report']
-        missing = [d for d in required_dirs if not (self.pbip_path / d).exists()]
-        
-        if missing:
-            raise ValueError(
-                f"Invalid .pbip structure. Missing directories: {', '.join(missing)}\n"
-                f"Expected .pbip project directory with 'semantic-model' and 'report' folders."
-            )
+            raise ValueError(f"PBIP path must be a directory or .pbip file: {self.pbip_path}")
     
     def analyze(self) -> str:
         """Run complete analysis pipeline"""
@@ -118,7 +135,7 @@ class PBIPAnalyzer:
             measure_analyzer = MeasureAnalyzer(model.measures)
             measure_analyzer.analyze()
             
-            relationship_analyzer = RelationshipAnalyzer(model.relationships, model.tables)
+            relationship_analyzer = RelationshipAnalyzer(model)
             relationship_analyzer.analyze()
             
             # Phase 4: Generate statistics
@@ -134,7 +151,7 @@ class PBIPAnalyzer:
             data_type_analyzer = DataTypeAnalyzer(model.tables)
             data_type_stats = data_type_analyzer.analyze()
             
-            graph_analyzer = RelationshipGraphAnalyzer(relationship_analyzer)
+            graph_analyzer = RelationshipGraphAnalyzer(relationship_analyzer, table_analyzer)
             graph_metrics = graph_analyzer.analyze()
             
             # Phase 5: Generate visualizations
@@ -148,12 +165,8 @@ class PBIPAnalyzer:
             image_paths['relationship_diagram'] = f"images/{rel_path.name}"
             self.logger.debug(f"  Generated: {rel_path.name}")
             
-            # Data type chart
-            dtype_chart = DataTypeChartGenerator(data_type_stats)
-            dtype_path = self.images_dir / "data_type_distribution.png"
-            dtype_chart.generate(str(dtype_path))
-            image_paths['data_type_chart'] = f"images/{dtype_path.name}"
-            self.logger.debug(f"  Generated: {dtype_path.name}")
+            # NOTE: Data type charts no longer generated as PNG files - now rendered as Markdown table
+            
             
             # Measure dependencies (only if measures exist)
             if model.measures:
@@ -178,6 +191,7 @@ class PBIPAnalyzer:
             tables_gen = TablesSectionGenerator(table_analyzer)
             measures_gen = MeasuresSectionGenerator(measure_analyzer, dax_stats)
             relationships_gen = RelationshipsSectionGenerator(relationship_analyzer, graph_metrics)
+            datatype_gen = DataTypeTableGenerator(data_type_stats)
             recommendations_gen = RecommendationsGenerator(
                 summary, graph_metrics, dax_stats, table_analyzer, relationship_analyzer
             )
@@ -187,7 +201,7 @@ class PBIPAnalyzer:
             exporter = ReportExporter(str(self.output_dir))
             report_path = exporter.export(
                 header_gen, summary_gen_report, tables_gen, measures_gen,
-                relationships_gen, recommendations_gen, image_paths
+                relationships_gen, recommendations_gen, datatype_gen, image_paths
             )
             
             self.logger.info("Analysis complete!")
@@ -210,18 +224,30 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Using .pbip file (simplest method)
+  python main.py ./CorporateSpend.pbip
+  
+  # Using project directory
   python main.py ./my-project.pbip
-  python main.py ./my-project.pbip -o ./reports
-  python main.py ./my-project.pbip --verbose
+  
+  # With custom output directory
+  python main.py ./CorporateSpend.pbip -o ./reports
+  
+  # With verbose logging
+  python main.py ./CorporateSpend.pbip --verbose
 
 The tool will generate:
   - Markdown report with comprehensive analysis
   - PNG visualizations (relationship diagrams, charts)
   - All outputs saved to the specified output directory
+
+Supported input formats:
+  - .pbip JSON file: CorporateSpend.pbip (tool will find CorporateSpend.Report & CorporateSpend.SemanticModel)
+  - PBIP directory: my-project.pbip/ (containing semantic-model/ and report/)
         """
     )
     
-    parser.add_argument('pbip_path', type=str, help='Path to .pbip project directory')
+    parser.add_argument('pbip_path', type=str, help='Path to .pbip file or project directory')
     parser.add_argument('-o', '--output', type=str, default='output',
                         help='Output directory for reports and charts (default: output/)')
     parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose logging')

@@ -1,10 +1,10 @@
 """
 Data Type Chart Generator
-Creates histograms of data type distribution
+Creates separate charts for each data type category
 """
 
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Dict
 import matplotlib.pyplot as plt
 import seaborn as sns
 from utils import DataTypeAnalyzer
@@ -12,7 +12,8 @@ from utils import DataTypeAnalyzer
 
 class DataTypeChartGenerator:
     """
-    Generates data type distribution charts
+    Generates separate data type distribution charts by category
+    Creates multiple PNG files (one per category) for maximum clarity
     """
     
     def __init__(self, data_type_stats):
@@ -23,42 +24,268 @@ class DataTypeChartGenerator:
             data_type_stats: DataTypeStats object (not analyzer)
         """
         self.stats = data_type_stats
+        self.output_dir = None
     
-    def generate(self, output_path: str, figsize: Tuple[int, int] = (12, 8),
+    def generate(self, output_path: str, figsize: Tuple[int, int] = (14, 8),
                  dpi: int = 150) -> str:
         """
-        Generate data type distribution chart
+        Generate separate data type distribution charts (4 independent files)
         
         Args:
-            output_path: Path to save the chart
+            output_path: Base path to save charts (will create multiple files)
             figsize: Figure size (width, height)
             dpi: Resolution
         
         Returns:
-            Path to saved chart
+            Path to output directory
         """
         if not self.stats or not self.stats.data_type_counts:
             return self._generate_empty_chart(output_path, figsize, dpi)
         
-        # Create figure with subplots
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, dpi=dpi)
+        # Setup output directory
+        output_file = Path(output_path)
+        self.output_dir = output_file.parent
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Chart 1: Detailed type distribution (bar chart)
-        self._create_detailed_chart(ax1)
+        # Generate 4 separate charts
+        self._generate_numeric_chart(figsize, dpi)
+        self._generate_text_chart(figsize, dpi)
+        self._generate_datetime_chart(figsize, dpi)
+        self._generate_other_chart(figsize, dpi)
         
-        # Chart 2: Category distribution (pie chart)
-        self._create_category_chart(ax2)
+        # Return directory path
+        return str(self.output_dir)
+    
+    def _generate_numeric_chart(self, figsize: Tuple[int, int], dpi: int):
+        """Generate chart for numeric data types"""
+        numeric_types = {
+            'Int64': self.stats.data_type_counts.get('Int64', 0),
+            'Int32': self.stats.data_type_counts.get('Int32', 0),
+            'Int16': self.stats.data_type_counts.get('Int16', 0),
+            'Decimal': self.stats.data_type_counts.get('Decimal', 0),
+            'Double': self.stats.data_type_counts.get('Double', 0),
+            'Single': self.stats.data_type_counts.get('Single', 0),
+            'Currency': self.stats.data_type_counts.get('Currency', 0),
+            'Percentage': self.stats.data_type_counts.get('Percentage', 0),
+        }
         
-        plt.suptitle(
-            'Data Type Distribution Analysis',
-            fontsize=16,
-            fontweight='bold',
-            y=0.98
-        )
+        numeric_types = {k: v for k, v in numeric_types.items() if v > 0}
         
+        if not numeric_types:
+            return
+        
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        
+        types = list(numeric_types.keys())
+        counts = list(numeric_types.values())
+        
+        # Gradient of blues
+        colors = ['#1f77b4', '#2ca02c', '#3498db', '#2980b9', '#1abc9c', '#16a085', '#3498db', '#2c3e50']
+        colors = colors[:len(types)]
+        
+        bars = ax.bar(types, counts, color=colors, alpha=0.85, edgecolor='black', linewidth=2)
+        
+        # Add value labels
+        for bar, count in zip(bars, counts):
+            height = bar.get_height()
+            percentage = (count / self.stats.total_columns) * 100
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                height + max(counts) * 0.02,
+                f'{count}\n({percentage:.1f}%)',
+                ha='center',
+                va='bottom',
+                fontsize=11,
+                fontweight='bold'
+            )
+        
+        ax.set_ylabel('Number of Columns', fontsize=12, fontweight='bold')
+        ax.set_xlabel('Data Type', fontsize=12, fontweight='bold')
+        ax.set_title('Numeric Data Types Distribution', fontsize=14, fontweight='bold', pad=20)
+        ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=0.8)
+        ax.set_ylim(0, max(counts) * 1.2)
+        
+        plt.xticks(rotation=45, ha='right', fontsize=11)
+        plt.yticks(fontsize=11)
         plt.tight_layout()
         
-        # Save
+        output_file = self.output_dir / 'data_type_numeric.png'
+        plt.savefig(output_file, bbox_inches='tight', dpi=dpi)
+        plt.close()
+    
+    def _generate_text_chart(self, figsize: Tuple[int, int], dpi: int):
+        """Generate chart for text data types"""
+        text_types = {
+            'String': self.stats.data_type_counts.get('String', 0),
+            'Text': self.stats.data_type_counts.get('Text', 0),
+        }
+        
+        text_types = {k: v for k, v in text_types.items() if v > 0}
+        
+        if not text_types:
+            return
+        
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        
+        types = list(text_types.keys())
+        counts = list(text_types.values())
+        
+        colors = ['#2ecc71', '#27ae60']
+        colors = colors[:len(types)]
+        
+        bars = ax.bar(types, counts, color=colors, alpha=0.85, edgecolor='black', linewidth=2)
+        
+        for bar, count in zip(bars, counts):
+            height = bar.get_height()
+            percentage = (count / self.stats.total_columns) * 100
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                height + max(counts) * 0.02,
+                f'{count}\n({percentage:.1f}%)',
+                ha='center',
+                va='bottom',
+                fontsize=11,
+                fontweight='bold'
+            )
+        
+        ax.set_ylabel('Number of Columns', fontsize=12, fontweight='bold')
+        ax.set_xlabel('Data Type', fontsize=12, fontweight='bold')
+        ax.set_title('Text Data Types Distribution', fontsize=14, fontweight='bold', pad=20)
+        ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=0.8)
+        ax.set_ylim(0, max(counts) * 1.2)
+        
+        plt.xticks(rotation=45, ha='right', fontsize=11)
+        plt.yticks(fontsize=11)
+        plt.tight_layout()
+        
+        output_file = self.output_dir / 'data_type_text.png'
+        plt.savefig(output_file, bbox_inches='tight', dpi=dpi)
+        plt.close()
+    
+    def _generate_datetime_chart(self, figsize: Tuple[int, int], dpi: int):
+        """Generate chart for date/time data types"""
+        datetime_types = {
+            'DateTime': self.stats.data_type_counts.get('DateTime', 0),
+            'Date': self.stats.data_type_counts.get('Date', 0),
+            'Time': self.stats.data_type_counts.get('Time', 0),
+        }
+        
+        datetime_types = {k: v for k, v in datetime_types.items() if v > 0}
+        
+        if not datetime_types:
+            return
+        
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        
+        types = list(datetime_types.keys())
+        counts = list(datetime_types.values())
+        
+        colors = ['#e74c3c', '#c0392b', '#e67e22']
+        colors = colors[:len(types)]
+        
+        bars = ax.bar(types, counts, color=colors, alpha=0.85, edgecolor='black', linewidth=2)
+        
+        for bar, count in zip(bars, counts):
+            height = bar.get_height()
+            percentage = (count / self.stats.total_columns) * 100
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                height + max(counts) * 0.02,
+                f'{count}\n({percentage:.1f}%)',
+                ha='center',
+                va='bottom',
+                fontsize=11,
+                fontweight='bold'
+            )
+        
+        ax.set_ylabel('Number of Columns', fontsize=12, fontweight='bold')
+        ax.set_xlabel('Data Type', fontsize=12, fontweight='bold')
+        ax.set_title('Date/Time Data Types Distribution', fontsize=14, fontweight='bold', pad=20)
+        ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=0.8)
+        ax.set_ylim(0, max(counts) * 1.2)
+        
+        plt.xticks(rotation=45, ha='right', fontsize=11)
+        plt.yticks(fontsize=11)
+        plt.tight_layout()
+        
+        output_file = self.output_dir / 'data_type_datetime.png'
+        plt.savefig(output_file, bbox_inches='tight', dpi=dpi)
+        plt.close()
+    
+    def _generate_other_chart(self, figsize: Tuple[int, int], dpi: int):
+        """Generate chart for boolean and other data types"""
+        other_types = {
+            'Boolean': self.stats.data_type_counts.get('Boolean', 0),
+            'Binary': self.stats.data_type_counts.get('Binary', 0),
+        }
+        
+        known_types = {'Int64', 'Int32', 'Int16', 'Decimal', 'Double', 'Single', 
+                      'Currency', 'Percentage', 'String', 'Text', 'DateTime', 
+                      'Date', 'Time', 'Boolean', 'Binary'}
+        
+        for dtype, count in self.stats.data_type_counts.items():
+            if dtype not in known_types:
+                other_types[dtype] = count
+        
+        other_types = {k: v for k, v in other_types.items() if v > 0}
+        
+        if not other_types:
+            return
+        
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        
+        types = list(other_types.keys())
+        counts = list(other_types.values())
+        
+        colors = ['#f39c12', '#d35400', '#95a5a6', '#34495e', '#9b59b6', '#16a085']
+        colors = colors[:len(types)]
+        
+        bars = ax.bar(types, counts, color=colors, alpha=0.85, edgecolor='black', linewidth=2)
+        
+        for bar, count in zip(bars, counts):
+            height = bar.get_height()
+            percentage = (count / self.stats.total_columns) * 100
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                height + max(counts) * 0.02,
+                f'{count}\n({percentage:.1f}%)',
+                ha='center',
+                va='bottom',
+                fontsize=11,
+                fontweight='bold'
+            )
+        
+        ax.set_ylabel('Number of Columns', fontsize=12, fontweight='bold')
+        ax.set_xlabel('Data Type', fontsize=12, fontweight='bold')
+        ax.set_title('Other Data Types Distribution', fontsize=14, fontweight='bold', pad=20)
+        ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=0.8)
+        ax.set_ylim(0, max(counts) * 1.2)
+        
+        plt.xticks(rotation=45, ha='right', fontsize=11)
+        plt.yticks(fontsize=11)
+        plt.tight_layout()
+        
+        output_file = self.output_dir / 'data_type_other.png'
+        plt.savefig(output_file, bbox_inches='tight', dpi=dpi)
+        plt.close()
+    
+    def _generate_empty_chart(self, output_path: str, figsize: Tuple[int, int],
+                             dpi: int) -> str:
+        """Generate chart when no data available"""
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        
+        ax.text(
+            0.5, 0.5,
+            'No Data Type Information Available',
+            horizontalalignment='center',
+            verticalalignment='center',
+            fontsize=16,
+            color='#7F8C8D'
+        )
+        
+        ax.set_title('Data Type Distribution', fontsize=16, fontweight='bold')
+        ax.axis('off')
+        
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
         plt.savefig(output_file, bbox_inches='tight', dpi=dpi)
@@ -66,89 +293,11 @@ class DataTypeChartGenerator:
         
         return str(output_file)
     
-    def _create_detailed_chart(self, ax):
-        """Create detailed bar chart of data types"""
-        # Get sorted types
-        sorted_types = sorted(self.stats.data_type_counts.items(), 
-                            key=lambda x: x[1], reverse=True)
-        
-        if not sorted_types:
-            return
-        
-        types = [t[0] for t in sorted_types]
-        counts = [t[1] for t in sorted_types]
-        
-        # Color palette
-        colors = sns.color_palette("husl", len(types))
-        
-        # Create horizontal bar chart
-        bars = ax.barh(types, counts, color=colors, alpha=0.8, edgecolor='black')
-        
-        # Add value labels
-        for i, (bar, count) in enumerate(zip(bars, counts)):
-            percentage = (count / self.stats.total_columns) * 100
-            ax.text(
-                bar.get_width() + max(counts) * 0.01,
-                bar.get_y() + bar.get_height() / 2,
-                f'{count} ({percentage:.1f}%)',
-                va='center',
-                fontsize=9,
-                fontweight='bold'
-            )
-        
-        ax.set_xlabel('Number of Columns', fontsize=11, fontweight='bold')
-        ax.set_ylabel('Data Type', fontsize=11, fontweight='bold')
-        ax.set_title('Detailed Type Distribution', fontsize=12, fontweight='bold', pad=10)
-        ax.grid(axis='x', alpha=0.3, linestyle='--')
-        
-        # Invert y-axis to show most common at top
-        ax.invert_yaxis()
-    
-    def _create_category_chart(self, ax):
-        """Create pie chart of data type categories"""
-        # Build category distribution from stats
-        categories = {
-            'Numeric': self.stats.numeric_columns,
-            'Text': self.stats.text_columns,
-            'Date/Time': self.stats.date_columns,
-            'Boolean': self.stats.boolean_columns
-        }
-        
-        if not categories:
-            return
-        
-        # Filter out zero values
-        categories = {k: v for k, v in categories.items() if v > 0}
-        
-        labels = list(categories.keys())
-        sizes = list(categories.values())
-        
-        # Colors for categories
-        category_colors = {
-            'Numeric': '#3498db',
-            'Text': '#2ecc71',
-            'Date/Time': '#e74c3c',
-            'Boolean': '#f39c12',
-            'Other': '#95a5a6'
-        }
-        colors = [category_colors.get(label, '#95a5a6') for label in labels]
-        
-        # Create pie chart
-        wedges, texts, autotexts = ax.pie(
-            sizes,
-            labels=labels,
-            colors=colors,
-            autopct='%1.1f%%',
-            startangle=90,
-            textprops={'fontsize': 10, 'fontweight': 'bold'}
-        )
-        
-        # Make percentage text white
-        for autotext in autotexts:
-            autotext.set_color('white')
-            autotext.set_fontsize(9)
-        
-        ax.set_title('Category Distribution', fontsize=12, fontweight='bold', pad=10)
+    def __repr__(self) -> str:
+        """String representation"""
+        types = len(self.stats.data_type_counts) if self.stats else 0
+        return f"DataTypeChartGenerator(types={types})"
+
     
     def _generate_empty_chart(self, output_path: str, figsize: Tuple[int, int],
                              dpi: int) -> str:

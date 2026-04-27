@@ -12,7 +12,7 @@ from parsers.model_bim_parser import Table, ModelBIM
 class TableAnalysis:
     """Analysis results for a single table"""
     name: str
-    table_type: str  # 'fact', 'dimension', 'bridge', 'calculated', 'unknown'
+    table_type: str  # 'fact', 'dimension', 'bridge', 'parameter', 'calculation', 'calculated', 'unknown'
     column_count: int
     measure_count: int
     hierarchy_count: int
@@ -45,8 +45,45 @@ class TableAnalyzer:
         self.analyses: Dict[str, TableAnalysis] = {}
         self.relationship_map: Dict[str, List[str]] = {}
         
+        # BUG FIX #5: Add logging to detect naming mismatches
+        self._log_table_name_mismatch()
+        
         # Build relationship map
         self._build_relationship_map()
+    
+    def _log_table_name_mismatch(self):
+        """BUG FIX #5: Log tables in relationships vs model for debugging"""
+        # Get all table names from model
+        model_table_names = {t.name for t in self.tables}
+        
+        # Get all table names from relationships
+        rel_table_names = set()
+        for rel in self.relationships:
+            rel_table_names.add(rel.from_table)
+            rel_table_names.add(rel.to_table)
+        
+        # Log for debugging
+        print("\n" + "=" * 70)
+        print("DEBUG: Table Name Analysis")
+        print("=" * 70)
+        print(f"Tables in model: {sorted(model_table_names)}")
+        print(f"Tables in relationships: {sorted(rel_table_names)}")
+        
+        # Check for mismatches
+        missing_in_model = rel_table_names - model_table_names
+        not_in_relationships = model_table_names - rel_table_names
+        
+        if missing_in_model:
+            print(f"\n⚠️  WARNING: Tables in relationships but NOT in model:")
+            for table_name in sorted(missing_in_model):
+                print(f"   - {table_name} (POSSIBLE TYPO)")
+        
+        if not_in_relationships:
+            print(f"\n✓ Tables in model with NO relationships (isolated):")
+            for table_name in sorted(not_in_relationships):
+                print(f"   - {table_name}")
+        
+        print("=" * 70 + "\n")
     
     def analyze(self) -> Dict[str, TableAnalysis]:
         """
@@ -74,6 +111,28 @@ class TableAnalyzer:
                 self.relationship_map[rel.to_table] = []
             self.relationship_map[rel.to_table].append(rel.from_table)
     
+    def _count_table_relationships(self, table_name: str) -> int:
+        """
+        BUG FIX #5: Count relationships for a table with intelligent fallback
+        
+        Tries:
+        1. Exact match in relationship_map
+        2. Case-insensitive match (if no exact match found)
+        3. Returns 0 if no match found
+        """
+        # Try exact match first
+        if table_name in self.relationship_map:
+            return len(self.relationship_map[table_name])
+        
+        # Try case-insensitive match
+        table_name_lower = table_name.lower()
+        for rel_table_name, connected_tables in self.relationship_map.items():
+            if rel_table_name.lower() == table_name_lower:
+                return len(connected_tables)
+        
+        # No match found
+        return 0
+    
     def _analyze_table(self, table: Table) -> TableAnalysis:
         """
         Analyze a single table
@@ -88,7 +147,9 @@ class TableAnalyzer:
         column_count = len(table.columns)
         measure_count = len(table.measures)
         hierarchy_count = len(table.hierarchies)
-        relationship_count = len(self.relationship_map.get(table.name, []))
+        
+        # BUG FIX #5: Use smarter relationship counting with fallback for case-insensitive match
+        relationship_count = self._count_table_relationships(table.name)
         
         # Check if calculated
         is_calculated = any(col.expression for col in table.columns)
@@ -126,26 +187,140 @@ class TableAnalyzer:
                        measure_count: int, relationship_count: int,
                        is_calculated: bool) -> tuple[str, float, List[str]]:
         """
-        Classify table as fact, dimension, or other
+        Classify table as fact, dimension, or other using priority-based heuristics
+        
+        Priority order (STRICT):
+        0. SPECIAL TABLE TYPES (highest priority - checked FIRST):
+           - table['name'] == "Calculations" or "_Measures", "_Calc", "Medidas" → Calculation
+           - columns == 0 AND measures > 0 → Calculation
+           - param_ prefix → Parameter
+        
+        1. Name PREFIXES:
+           - fact_, fct_          → Fact
+           - dim_                 → Dimension
+           - bridge_              → Bridge (subtype of Dimension)
+           - cal_, dim_calendario → Calendar (subtype of Dimension)
+        
+        2. Only if NO prefix match, evaluate heuristics:
+           - >15 cols + numeric cols + ≥1 relationship → Fact
+           - Column with amount/quantity keywords + (>10 cols OR >0 relationships) → Fact
+           - Most connected table in graph (hub) → Fact candidate
+        
+        3. Fallback → Unknown
         
         Returns:
             Tuple of (type, confidence, reasons)
         """
         reasons = []
-        score_fact = 0
-        score_dim = 0
         
         # Calculated tables are usually special purpose
         if is_calculated:
             return ('calculated', 1.0, ['Table contains calculated columns'])
         
-        # Name-based heuristics
         name_lower = table.name.lower()
-        if any(keyword in name_lower for keyword in ['fact', 'sales', 'transaction', 'order']):
+        
+        # ========== PRIORITY 0: SPECIAL TABLE TYPES (HIGHEST PRIORITY) ==========
+        # BUG FIX #3: Detect Calculation tables
+        calculation_names = ['calculations', '_measures', '_calc', 'medidas']
+        if name_lower in calculation_names or table.name.endswith(('_Measures', '_Calc')):
+            confidence = 0.99
+            reasons.append(f"Table name '{table.name}' is a calculation/measure container")
+            return ('calculation', confidence, reasons)
+        
+        # BUG FIX #3: If 0 columns but has measures, it's a calculation table
+        if column_count == 0 and measure_count > 0:
+            confidence = 0.95
+            reasons.append(f"Table has 0 columns but {measure_count} measures (calculation table)")
+            return ('calculation', confidence, reasons)
+        
+        # BUG FIX #4: Parameter tables (param_ prefix)
+        if name_lower.startswith('param_'):
+            confidence = 0.95
+            reasons.append(f"Table name '{table.name}' starts with 'param_' prefix (PARAMETER)")
+            return ('parameter', confidence, reasons)
+        
+        # ========== PRIORITY 1: NAME PREFIXES ==========
+        # BUG FIX #2: Prefixes must be checked FIRST and have absolute priority
+        
+        # Fact table prefixes
+        fact_prefixes = ['fact_', 'fct_']
+        if any(name_lower.startswith(prefix) for prefix in fact_prefixes):
+            confidence = 0.95
+            reasons.append(f"Table name '{table.name}' starts with fact table prefix")
+            return ('fact', confidence, reasons)
+        
+        # ⭐ Dimension prefixes (MUST come before heuristics to fix dim_dict_americas_pl)
+        if name_lower.startswith('dim_'):
+            confidence = 0.95
+            reasons.append(f"Table name '{table.name}' starts with 'dim_' prefix (DIMENSION)")
+            return ('dimension', confidence, reasons)
+        
+        # Bridge table prefix
+        if name_lower.startswith('bridge_'):
+            confidence = 0.90
+            reasons.append(f"Table name '{table.name}' starts with 'bridge_' prefix")
+            return ('dimension', confidence, reasons)  # Bridge is a subtype of dimension
+        
+        # Parameter table prefix
+        if name_lower.startswith('param_'):
+            confidence = 0.90
+            reasons.append(f"Table name '{table.name}' starts with 'param_' prefix (parameter table)")
+            return ('dimension', confidence, reasons)  # Parameter is a subtype of dimension
+        
+        # Calendar table prefixes
+        calendar_prefixes = ['cal_', 'dim_calendario', 'date_', 'calendar_']
+        if any(name_lower.startswith(prefix) or name_lower == prefix.rstrip('_') 
+               for prefix in calendar_prefixes):
+            confidence = 0.90
+            reasons.append(f"Table name '{table.name}' matches calendar table pattern")
+            return ('dimension', confidence, reasons)  # Calendar is a subtype of dimension
+        
+        # ========== PRIORITY 2: HEURISTICS (only if no prefix matched) ==========
+        numeric_column_types = {'int64', 'int', 'double', 'decimal', 'currency', 'float'}
+        amount_keywords = ['amount', 'quantity', 'qty', 'value', 'price', 'cost', 'total', 
+                          'sum', 'monto', 'valor', 'importe', 'gasto', 'spend']
+        
+        has_numeric_cols = any(
+            (col.data_type or '').lower() in numeric_column_types 
+            for col in table.columns
+        )
+        
+        has_amount_cols = any(
+            any(keyword in col.name.lower() for keyword in amount_keywords)
+            for col in table.columns
+        )
+        
+        # Heuristic: Large table with numeric columns and relationships
+        if column_count > 15 and has_numeric_cols and relationship_count > 0:
+            confidence = 0.90
+            reasons.append(f"Has {column_count} columns with numeric types and {relationship_count} relationships (fact indicator)")
+            return ('fact', confidence, reasons)
+        
+        # Heuristic: Amount/quantity columns with reasonable size
+        if has_amount_cols and (column_count > 10 or relationship_count > 0):
+            confidence = 0.80
+            col_examples = [col.name for col in table.columns if any(kw in col.name.lower() for kw in amount_keywords)][:3]
+            reasons.append(f"Contains amount/quantity columns: {', '.join(col_examples)} (fact indicator)")
+            return ('fact', confidence, reasons)
+        
+        # Heuristic: Most connected table in graph (hub/center)
+        max_degree_overall = max([len(self.relationship_map.get(t.name, [])) for t in self.tables], default=0)
+        
+        if max_degree_overall > 2 and relationship_count == max_degree_overall:
+            confidence = 0.75
+            reasons.append(f"Most connected table ({relationship_count} relationships) - typical fact table hub")
+            return ('fact', confidence, reasons)
+        
+        # ========== PRIORITY 3: FALLBACK TO TRADITIONAL HEURISTICS ==========
+        score_fact = 0
+        score_dim = 0
+        
+        # Name-based heuristics
+        if any(keyword in name_lower for keyword in ['sales', 'order']):
             score_fact += 2
             reasons.append(f"Table name '{table.name}' suggests fact table")
         
-        if any(keyword in name_lower for keyword in ['dim', 'dimension', 'calendar', 'date', 'customer', 'product']):
+        if any(keyword in name_lower for keyword in ['dimension', 'customer', 'product']):
             score_dim += 2
             reasons.append(f"Table name '{table.name}' suggests dimension table")
         
@@ -216,9 +391,18 @@ class TableAnalyzer:
         """Get all tables classified as dimension tables"""
         return [a for a in self.analyses.values() if a.table_type == 'dimension']
     
+     
     def get_calculated_tables(self) -> List[TableAnalysis]:
         """Get all calculated tables"""
         return [a for a in self.analyses.values() if a.is_calculated]
+    
+    def get_calculation_tables(self) -> List[TableAnalysis]:
+        """BUG FIX #3: Get all calculation/measure container tables"""
+        return [a for a in self.analyses.values() if a.table_type == 'calculation']
+    
+    def get_parameter_tables(self) -> List[TableAnalysis]:
+        """BUG FIX #4: Get all parameter tables"""
+        return [a for a in self.analyses.values() if a.table_type == 'parameter']
     
     def get_summary(self) -> Dict[str, int]:
         """Get summary statistics of table types"""
@@ -226,6 +410,8 @@ class TableAnalyzer:
             'total': len(self.analyses),
             'fact': len([a for a in self.analyses.values() if a.table_type == 'fact']),
             'dimension': len([a for a in self.analyses.values() if a.table_type == 'dimension']),
+            'calculation': len([a for a in self.analyses.values() if a.table_type == 'calculation']),
+            'parameter': len([a for a in self.analyses.values() if a.table_type == 'parameter']),
             'calculated': len([a for a in self.analyses.values() if a.is_calculated]),
             'unknown': len([a for a in self.analyses.values() if a.table_type == 'unknown']),
             'hidden': len([a for a in self.analyses.values() if a.is_hidden])

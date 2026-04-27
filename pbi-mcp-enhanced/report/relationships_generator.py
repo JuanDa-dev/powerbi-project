@@ -63,34 +63,21 @@ class RelationshipsSectionGenerator:
     
     def _generate_summary(self) -> str:
         """Generate summary"""
-        # Build summary from analyzer analyses
-        analyses = self.relationship_analyzer.analyses
-        total = len(analyses)
-        active = sum(1 for r in analyses if r.is_active)
-        inactive = total - active
-        bidirectional = sum(1 for r in analyses if hasattr(r, 'cross_filtering') and r.cross_filtering == 'Both')
+        # Use statistics from analyzer (already calculated correctly)
+        stats = self.relationship_analyzer.statistics
         
-        # Count cardinalities
-        one_to_many = sum(1 for r in analyses if r.cardinality == 'One-to-Many')
-        many_to_one = sum(1 for r in analyses if r.cardinality == 'Many-to-One')
-        one_to_one = sum(1 for r in analyses if r.cardinality == 'One-to-One')
-        many_to_many = sum(1 for r in analyses if r.cardinality == 'Many-to-Many')
-        
-        # Count unique tables
-        tables = set()
-        for r in analyses:
-            tables.add(r.from_table)
-            tables.add(r.to_table)
+        if stats is None:
+            return "No relationship statistics available.\n"
         
         text = [
-            f"The model contains **{total} relationships** connecting {len(tables)} tables.\n",
-            f"- **Active Relationships**: {active}",
-            f"- **Inactive Relationships**: {inactive}",
-            f"- **Bidirectional Cross-Filter**: {bidirectional}",
-            f"- **One-to-Many**: {one_to_many}",
-            f"- **Many-to-One**: {many_to_one}",
-            f"- **One-to-One**: {one_to_one}",
-            f"- **Many-to-Many**: {many_to_many}",
+            f"The model contains **{stats.total_relationships} relationships** connecting the tables.\n",
+            f"- **Active Relationships**: {stats.active_relationships}",
+            f"- **Inactive Relationships**: {stats.inactive_relationships}",
+            f"- **Bidirectional Cross-Filter**: {stats.bidirectional_relationships}",
+            f"- **One-to-Many**: {stats.one_to_many_count}",
+            f"- **Many-to-One**: {stats.many_to_one_count}",
+            f"- **One-to-One**: {stats.one_to_one_count}",
+            f"- **Many-to-Many**: {stats.many_to_many_count}",
             ""
         ]
         
@@ -132,11 +119,11 @@ class RelationshipsSectionGenerator:
             "|-------|-------------|"
         ]
         
-        for table_name in hub_tables:
-            # Count connections
-            connections = sum(1 for r in self.relationship_analyzer.analyses 
-                            if r.from_table == table_name or r.to_table == table_name)
-            lines.append(f"| {table_name} | {connections} |")
+        for table_info in hub_tables:
+            # Extract table name and degree from tuple
+            table_name = table_info[0]
+            degree = table_info[1]
+            lines.append(f"| {table_name} | {degree} |")
         
         lines.append("")
         

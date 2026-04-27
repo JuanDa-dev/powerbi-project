@@ -31,7 +31,7 @@ class RelationshipDiagramGenerator:
         self.table_analyzer = table_analyzer
         self.graph: Optional[nx.DiGraph] = None
     
-    def generate(self, output_path: str, figsize: Tuple[int, int] = (16, 12),
+    def generate(self, output_path: str, figsize: Tuple[int, int] = (18, 14),
                  dpi: int = 150) -> str:
         """
         Generate relationship diagram
@@ -56,59 +56,84 @@ class RelationshipDiagramGenerator:
         # Get node colors based on table type
         node_colors = self._get_node_colors()
         
-        # Position nodes using spring layout
-        pos = nx.spring_layout(self.graph, k=2, iterations=50, seed=42)
+        # Use Kamada-Kawai layout for better distribution of secondary relationships
+        # This layout is better at showing network structure without centralizing
+        try:
+            pos = nx.kamada_kawai_layout(self.graph, scale=2)
+        except:
+            # Fallback to spring layout if kamada_kawai fails
+            pos = nx.spring_layout(self.graph, k=3, iterations=100, seed=42)
         
-        # Draw nodes
+        # Draw nodes with better sizing based on degree
+        node_sizes = [3000 + (self.graph.degree(node) * 500) for node in self.graph.nodes()]
+        
         for node_type, color in [('fact', '#FF6B6B'), ('dimension', '#4ECDC4'), 
                                   ('calculated', '#FFE66D'), ('unknown', '#95A5A6')]:
             nodes = [n for n in self.graph.nodes() if node_colors.get(n) == color]
             if nodes:
+                node_size_subset = [3000 + (self.graph.degree(n) * 500) for n in nodes]
                 nx.draw_networkx_nodes(
                     self.graph, pos,
                     nodelist=nodes,
                     node_color=color,
-                    node_size=3000,
+                    node_size=node_size_subset,
                     alpha=0.9,
                     ax=ax
                 )
         
-        # Draw edges
+        # Draw edges with different styles for active/inactive relationships
+        active_edges = [(u, v) for u, v, d in self.graph.edges(data=True) if d.get('active', True)]
+        inactive_edges = [(u, v) for u, v, d in self.graph.edges(data=True) if not d.get('active', True)]
+        
+        # Draw active edges (solid)
         nx.draw_networkx_edges(
             self.graph, pos,
-            edge_color='#7F8C8D',
-            arrows=True,
-            arrowsize=20,
-            arrowstyle='->',
-            width=2,
-            alpha=0.6,
-            ax=ax,
-            connectionstyle='arc3,rad=0.1'
+            edgelist=active_edges,
+            edge_color='#2C3E50',
+            width=2.5,
+            alpha=0.7,
+            ax=ax
         )
         
-        # Draw labels
+        # Draw inactive edges (dashed)
+        nx.draw_networkx_edges(
+            self.graph, pos,
+            edgelist=inactive_edges,
+            edge_color='#BDC3C7',
+            width=1.5,
+            alpha=0.4,
+            style='dashed',
+            ax=ax
+        )
+        
+        # Draw labels with better styling
         nx.draw_networkx_labels(
             self.graph, pos,
-            font_size=9,
+            font_size=8,
             font_weight='bold',
             font_color='white',
             ax=ax
         )
         
-        # Add legend
+        # Add legend with more information
         legend_elements = [
             mpatches.Patch(color='#FF6B6B', label='Fact Tables'),
             mpatches.Patch(color='#4ECDC4', label='Dimension Tables'),
             mpatches.Patch(color='#FFE66D', label='Calculated Tables'),
-            mpatches.Patch(color='#95A5A6', label='Unknown Type')
+            mpatches.Patch(color='#95A5A6', label='Unknown Type'),
+            mpatches.Patch(color='#2C3E50', label='Active Relationships'),
+            mpatches.Patch(color='#BDC3C7', label='Inactive Relationships')
         ]
-        ax.legend(handles=legend_elements, loc='upper right', fontsize=10)
+        ax.legend(handles=legend_elements, loc='upper right', fontsize=9, title='Legend', title_fontsize=10)
         
-        # Set title
+        # Set title with relationship count info
         rel_count = self.graph.number_of_edges()
         table_count = self.graph.number_of_nodes()
+        active_rel_count = len(active_edges)
+        inactive_rel_count = len(inactive_edges)
+        
         ax.set_title(
-            f'Data Model Relationship Diagram\n{table_count} Tables, {rel_count} Relationships',
+            f'Data Model Relationship Diagram\n{table_count} Tables | {rel_count} Total Relationships ({active_rel_count} active, {inactive_rel_count} inactive)',
             fontsize=16,
             fontweight='bold',
             pad=20
@@ -126,23 +151,31 @@ class RelationshipDiagramGenerator:
         return str(output_file)
     
     def _build_graph(self):
-        """Build NetworkX directed graph from relationships"""
-        self.graph = nx.DiGraph()
+        """Build NetworkX undirected graph from relationships"""
+        # Use undirected graph to capture all relationships bidirectionally
+        self.graph = nx.Graph()
         
         # Add all tables as nodes
         for analysis in self.table_analyzer.analyses.values():
             self.graph.add_node(analysis.name)
         
-        # Add relationships as edges
+        # Add relationships as edges (undirected to capture all relationships)
+        edges_added = set()
         for rel in self.relationship_analyzer.analyses:
-            # Add edge with attributes
-            self.graph.add_edge(
-                rel.from_table,
-                rel.to_table,
-                active=rel.is_active,
-                cross_filter=rel.cross_filtering,
-                type=rel.relationship_type
-            )
+            # Create edge key to avoid duplicates
+            edge_key = tuple(sorted([rel.from_table, rel.to_table]))
+            
+            # Only add each unique relationship once
+            if edge_key not in edges_added:
+                self.graph.add_edge(
+                    rel.from_table,
+                    rel.to_table,
+                    active=rel.is_active,
+                    cross_filter=rel.cross_filtering,
+                    type=rel.relationship_type,
+                    weight=2 if rel.is_active else 1
+                )
+                edges_added.add(edge_key)
     
     def _get_node_colors(self) -> Dict[str, str]:
         """Get color mapping for nodes based on table type"""

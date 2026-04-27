@@ -25,6 +25,7 @@ class MeasureAnalysis:
     referenced_measures: List[str] = field(default_factory=list)
     referenced_tables: List[str] = field(default_factory=list)
     nesting_level: int = 0
+    is_placeholder: bool = False  # True if expression is empty/not implemented
 
 
 @dataclass
@@ -105,25 +106,34 @@ class MeasureAnalyzer:
             MeasureAnalysis object
         """
         expression = measure.expression or ""
+        is_placeholder = measure.is_placeholder
         
-        # Find DAX functions used
-        dax_functions = self._extract_dax_functions(expression)
-        
-        # Find referenced measures
-        referenced_measures = self._extract_referenced_measures(expression)
-        
-        # Find referenced tables
-        referenced_tables = self._extract_referenced_tables(expression)
-        
-        # Calculate complexity
-        complexity = self._calculate_complexity(
-            expression, 
-            dax_functions, 
-            referenced_measures
-        )
-        
-        # Calculate nesting level
-        nesting = self._calculate_nesting_level(expression)
+        # If it's a placeholder, set complexity to 0
+        if is_placeholder:
+            complexity = 0.0
+            dax_functions = []
+            referenced_measures = []
+            referenced_tables = []
+            nesting = 0
+        else:
+            # Find DAX functions used
+            dax_functions = self._extract_dax_functions(expression)
+            
+            # Find referenced measures
+            referenced_measures = self._extract_referenced_measures(expression)
+            
+            # Find referenced tables
+            referenced_tables = self._extract_referenced_tables(expression)
+            
+            # Calculate complexity
+            complexity = self._calculate_complexity(
+                expression, 
+                dax_functions, 
+                referenced_measures
+            )
+            
+            # Calculate nesting level
+            nesting = self._calculate_nesting_level(expression)
         
         return MeasureAnalysis(
             name=measure.name,
@@ -137,7 +147,8 @@ class MeasureAnalyzer:
             dax_functions=dax_functions,
             referenced_measures=referenced_measures,
             referenced_tables=referenced_tables,
-            nesting_level=nesting
+            nesting_level=nesting,
+            is_placeholder=is_placeholder
         )
     
     def _extract_dax_functions(self, expression: str) -> List[str]:

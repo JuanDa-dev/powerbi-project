@@ -56,27 +56,59 @@ pip install -r requirements.txt
 
 ### Usage
 
-**Basic usage:**
+#### 🎯 Opción 1: Analizar un Proyecto Específico (RECOMENDADO)
+
+**Con archivo .pbip explícito:**
 ```bash
 cd pbi-mcp-enhanced
-python main.py <path-to-pbip-project>
+python main.py ../RecursosFuente/CorporateSpend.pbip
 ```
 
-**With custom output directory:**
+**Con directorio padre (detecta automáticamente):**
 ```bash
-python main.py ./my-project.pbip -o ./reports
+cd pbi-mcp-enhanced
+python main.py ../RecursosFuente
 ```
 
-**With verbose logging:**
+El parser ahora detecta automáticamente los archivos `.pbip` en el directorio.
+
+#### 🎯 Opción 2: Interfaz Interactiva
+
+**Seleccionar proyecto interactivamente:**
 ```bash
-python main.py ./my-project.pbip --verbose
+cd pbi-mcp-enhanced
+python analyze_pbip.py ../RecursosFuente
 ```
+
+**Analizar todos los proyectos:**
+```bash
+cd pbi-mcp-enhanced
+python analyze_pbip.py ../RecursosFuente --all
+```
+
+#### 🎯 Opción 3: Descubrimiento Automático
+
+```bash
+cd pbi-mcp-enhanced
+python run.py                          # Busca en directorio actual
+python run.py --search ../RecursosFuente  # Busca en directorio específico
+python run.py --all                    # Analiza todos los encontrados
+```
+
+#### 🧪 Diagnóstico (Si Algo Falla)
+
+```bash
+cd pbi-mcp-enhanced
+python test_pbip.py ../RecursosFuente/CorporateSpend.pbip
+```
+
+Muestra información detallada sobre rutas y si el parser puede leer el proyecto.
 
 ### Command Line Arguments
 
 ```
 positional arguments:
-  pbip_path             Path to .pbip project directory
+  pbip_path             Path to .pbip file or project directory
 
 optional arguments:
   -h, --help            Show help message
@@ -85,6 +117,29 @@ optional arguments:
   -v, --verbose         Enable verbose logging
   --version             Show version number
 ```
+
+#### Input Formats Supported
+
+The tool now accepts both formats:
+
+1. **`.pbip` JSON file** (recommended):
+   ```bash
+   python main.py ./CorporateSpend.pbip
+   ```
+   The tool automatically discovers:
+   - `CorporateSpend.Report` folder
+   - `CorporateSpend.SemanticModel` folder
+
+2. **PBIP project directory**:
+   ```bash
+   python main.py ./my-project.pbip
+   ```
+   Expected structure:
+   ```
+   my-project.pbip/
+   ├── semantic-model/
+   └── report/
+   ```
 
 ---
 

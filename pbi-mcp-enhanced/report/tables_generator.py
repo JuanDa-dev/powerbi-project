@@ -47,6 +47,8 @@ class TablesSectionGenerator:
         # Tables by type
         sections.append(self._generate_fact_tables())
         sections.append(self._generate_dimension_tables())
+        sections.append(self._generate_calculation_tables())  # BUG FIX #3
+        sections.append(self._generate_parameter_tables())     # BUG FIX #4
         
         # Detailed table list
         sections.append(self._generate_detailed_list())
@@ -61,6 +63,8 @@ class TablesSectionGenerator:
             f"The model contains **{summary['total']} tables** classified as follows:\n",
             f"- **{summary['fact']} Fact Table(s)**: Transactional/event tables containing measures",
             f"- **{summary['dimension']} Dimension Table(s)**: Descriptive/reference tables",
+            f"- **{summary['calculation']} Calculation Table(s)**: DAX measure containers",
+            f"- **{summary['parameter']} Parameter Table(s)**: Filter and selector controls",
             f"- **{summary['calculated']} Calculated Table(s)**: Created via DAX expressions",
             f"- **{summary['unknown']} Unclassified Table(s)**: Could not be confidently classified",
         ]
@@ -114,6 +118,54 @@ class TablesSectionGenerator:
             lines.append(
                 f"| {table.name} | {table.column_count} | "
                 f"{table.hierarchy_count} | {table.relationship_count} | {confidence_pct}% |"
+            )
+        
+        lines.append("")
+        
+        return "\n".join(lines)
+    
+    def _generate_calculation_tables(self) -> str:
+        """BUG FIX #3: Generate calculation tables section"""
+        calc_tables = self.table_analyzer.get_calculation_tables()
+        
+        if not calc_tables:
+            return ""
+        
+        lines = [
+            "### Calculation Tables\n",
+            "| Table Name | Columns | Measures | Description |",
+            "|------------|---------|----------|-------------|"
+        ]
+        
+        for table in sorted(calc_tables, key=lambda t: t.measure_count, reverse=True):
+            description = "DAX measure container" if table.measure_count > 0 else "Empty measure table"
+            lines.append(
+                f"| {table.name} | {table.column_count} | "
+                f"{table.measure_count} | {description} |"
+            )
+        
+        lines.append("")
+        
+        return "\n".join(lines)
+    
+    def _generate_parameter_tables(self) -> str:
+        """BUG FIX #4: Generate parameter tables section"""
+        param_tables = self.table_analyzer.get_parameter_tables()
+        
+        if not param_tables:
+            return ""
+        
+        lines = [
+            "### 🎛️ Parameter Tables\n",
+            "Tables de parámetros para control de filtros y selectores dinámicos en visuals.\n",
+            "| Table Name | Columns | Description |",
+            "|------------|---------|-------------|"
+        ]
+        
+        for table in sorted(param_tables, key=lambda t: t.name):
+            description = "Parameter selector" if table.column_count == 0 else f"Parameter table ({table.column_count} cols)"
+            lines.append(
+                f"| {table.name} | {table.column_count} | {description} |"
             )
         
         lines.append("")

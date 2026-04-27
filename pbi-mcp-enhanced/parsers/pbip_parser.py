@@ -32,16 +32,68 @@ class PBIPParser:
         Initialize the PBIP parser
         
         Args:
-            pbip_path: Path to the .pbip project directory
+            pbip_path: Path to the .pbip project directory or .pbip JSON file
         """
-        self.pbip_path = Path(pbip_path)
+        pbip_path = str(pbip_path).strip()
+        self.pbip_path = self._resolve_pbip_path(pbip_path)
         self.structure: Optional[PBIPStructure] = None
         
         if not self.pbip_path.exists():
             raise FileNotFoundError(f"PBIP project not found: {pbip_path}")
         
         if not self.pbip_path.is_dir():
-            raise ValueError(f"PBIP path must be a directory: {pbip_path}")
+            raise ValueError(f"PBIP path must be a directory: {self.pbip_path}")
+    
+    def _resolve_pbip_path(self, pbip_input: str) -> Path:
+        """
+        Resolve PBIP path from either .pbip JSON file or directory
+        
+        Args:
+            pbip_input: Path to .pbip JSON file, project directory, or parent directory
+            
+        Returns:
+            Path to the PBIP project directory
+        """
+        input_path = Path(pbip_input)
+        
+        # If input is a .pbip JSON file
+        if input_path.suffix.lower() == '.pbip' and input_path.is_file():
+            # Get parent directory and project name
+            project_dir = input_path.parent
+            project_name = input_path.stem
+            
+            # Try to find Report and SemanticModel folders
+            # Format: {ProjectName}.Report and {ProjectName}.SemanticModel
+            report_folder = project_dir / f"{project_name}.Report"
+            semantic_folder = project_dir / f"{project_name}.SemanticModel"
+            
+            # Create a virtual PBIP structure by returning the project directory
+            # We'll handle this by returning the parent, and the parse() method will
+            # look for associated folders
+            return project_dir
+        
+        # If it's a directory, check if it contains .pbip files (parent directory scenario)
+        if input_path.is_dir():
+            pbip_files = list(input_path.glob("*.pbip"))
+            
+            # If this directory contains .pbip files, use the first one
+            if pbip_files:
+                first_pbip = pbip_files[0]
+                project_name = first_pbip.stem
+                
+                # Verify associated folders exist
+                report_folder = input_path / f"{project_name}.Report"
+                semantic_folder = input_path / f"{project_name}.SemanticModel"
+                
+                if report_folder.exists() or semantic_folder.exists():
+                    # Return the parent directory
+                    return input_path
+            
+            # Otherwise, return the directory as-is (assume it's a .pbip directory with semantic-model/report)
+            return input_path
+        
+        # Return as is
+        return input_path
     
     def parse(self) -> PBIPStructure:
         """
@@ -53,14 +105,39 @@ class PBIPParser:
         errors = []
         warnings = []
         
-        # Look for report definition
+        # Try to extract project name from current directory for folder lookup
+        project_name = self.pbip_path.name
+        
+        # Check if this directory contains .pbip files (parent directory scenario)
+        pbip_files_in_dir = list(self.pbip_path.glob("*.pbip"))
+        
+        if pbip_files_in_dir and project_name not in [p.stem for p in pbip_files_in_dir]:
+            # This looks like a parent directory with multiple projects
+            # Use the first .pbip file's name as the project
+            first_pbip = pbip_files_in_dir[0]
+            project_name = first_pbip.stem
+            search_parent = self.pbip_path
+        else:
+            # Normal case - use parent directory for searching associated folders
+            search_parent = self.pbip_path.parent
+        
+        # Look for report definition in standard location
         report_def = self._find_file("report/definition.pbir")
         has_report = report_def is not None
+        
+        # If not found, try looking in associated .Report folder
+        if not report_def:
+            report_folder = search_parent / f"{project_name}.Report"
+            if report_folder.exists():
+                report_def_alt = report_folder / "definition.pbir"
+                if report_def_alt.exists():
+                    report_def = report_def_alt
+                    has_report = True
         
         if not has_report:
             warnings.append("No report definition found (report/definition.pbir)")
         
-        # Look for semantic model
+        # Look for semantic model in standard location
         model_bim = self._find_file("semantic-model/model.bim")
         dataset_def = self._find_file("semantic-model/definition.pbism")
         
@@ -70,6 +147,24 @@ class PBIPParser:
         
         if not dataset_def:
             dataset_def = self._find_file("*.Dataset/definition.pbidataset")
+        
+        # If not found, try looking in associated .SemanticModel folder
+        if not model_bim and not dataset_def:
+            semantic_folder = search_parent / f"{project_name}.SemanticModel"
+            if semantic_folder.exists():
+                model_bim_alt = semantic_folder / "model.bim"
+                if model_bim_alt.exists():
+                    model_bim = model_bim_alt
+                
+                # Also check for TMDL in SemanticModel folder
+                tmdl_alt = semantic_folder / "definition"
+                if tmdl_alt.exists() and tmdl_alt.is_dir():
+                    model_tmdl = tmdl_alt
+                    has_semantic_model_tmdl = True
+                
+                dataset_def_alt = semantic_folder / "definition.pbism"
+                if dataset_def_alt.exists():
+                    dataset_def = dataset_def_alt
         
         has_semantic_model = model_bim is not None or dataset_def is not None
         
@@ -81,7 +176,7 @@ class PBIPParser:
         
         # Check for .SemanticModel folder (modern format)
         if not model_bim and not model_tmdl:
-            semantic_folders = list(self.pbip_path.parent.glob(f"{self.pbip_path.stem}.SemanticModel"))
+            semantic_folders = list(search_parent.glob(f"{project_name}.SemanticModel"))
             if semantic_folders:
                 semantic_folder = semantic_folders[0]
                 # Try model.bim in this folder

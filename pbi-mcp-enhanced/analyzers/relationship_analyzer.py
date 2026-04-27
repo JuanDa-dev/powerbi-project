@@ -31,6 +31,8 @@ class RelationshipStatistics:
     inactive_relationships: int
     bidirectional_relationships: int
     one_to_many_count: int
+    many_to_one_count: int  # NEW
+    one_to_one_count: int  # NEW
     many_to_many_count: int
     tables_with_most_relationships: List[Tuple[str, int]]
     hub_tables: List[str]  # Tables with many connections
@@ -98,18 +100,51 @@ class RelationshipAnalyzer:
         )
     
     def _determine_relationship_type(self, rel: Relationship) -> str:
-        """Determine the type of relationship"""
-        # This is a simplified version
-        # In real model.bim, cardinality is more complex
+        """
+        Determine the type of relationship based on cardinality.
         
-        if rel.cardinality:
-            if 'many' in rel.cardinality.lower():
-                return 'many-to-many'
-            elif 'one' in rel.cardinality.lower():
+        Normalizes format variations like "manyToOne", "many_to_one", "Many-to-One"
+        to standard format: "one-to-many", "many-to-one", "one-to-one", "many-to-many"
+        """
+        # Normalize cardinality strings to lowercase with underscore
+        def normalize_cardinality(card: Optional[str]) -> Optional[str]:
+            if not card:
+                return None
+            # Remove dashes and convert to lowercase
+            normalized = card.lower().replace('-', '_')
+            return normalized
+        
+        from_card = normalize_cardinality(rel.from_cardinality)
+        target_card = normalize_cardinality(rel.to_cardinality)  # Use target_card to avoid 'to' keyword
+        
+        # Determine relationship type based on fromCardinality and toCardinality
+        if from_card and target_card:
+            # Examples: from=many, target_card=one => many_one
+            rel_key = from_card + '_' + target_card
+            
+            # Match patterns
+            if rel_key == 'many_to_one' or rel_key == 'many_one':
+                return 'many-to-one'
+            elif rel_key == 'one_to_many' or rel_key == 'one_many':
+                return 'one-to-many'
+            elif rel_key == 'one_to_one' or rel_key == 'one_one':
                 return 'one-to-one'
+            elif rel_key == 'many_to_many' or rel_key == 'many_many':
+                return 'many-to-many'
         
-        # Default assumption based on Power BI conventions
-        # From table is typically the "many" side
+        # Fallback to old cardinality field if available
+        if rel.cardinality:
+            card_lower = rel.cardinality.lower()
+            if 'many_to_many' in card_lower or 'manytomany' in card_lower:
+                return 'many-to-many'
+            elif 'one_to_one' in card_lower or 'onetoone' in card_lower:
+                return 'one-to-one'
+            elif 'one_to_many' in card_lower or 'onetomany' in card_lower:
+                return 'one-to-many'
+            elif 'many_to_one' in card_lower or 'manytoone' in card_lower:
+                return 'many-to-one'
+        
+        # Default: most common case in Power BI
         return 'many-to-one'
     
     def _calculate_statistics(self):
@@ -122,24 +157,49 @@ class RelationshipAnalyzer:
         for rel in self.analyses:
             connections[rel.from_table] += 1
             connections[rel.to_table] += 1
-        
+
         self.table_connections = dict(connections)
-        
+
         # Find hub tables (tables with many connections)
         sorted_connections = sorted(
-            connections.items(), 
-            key=lambda x: x[1], 
+            connections.items(),
+            key=lambda x: x[1],
             reverse=True
         )
         hub_tables = [
-            table for table, count in sorted_connections 
+            table for table, count in sorted_connections
             if count >= 3  # Tables with 3+ connections
         ]
-        
-        # Find isolated tables (no relationships)
+
+        # BUG FIX #4: Find isolated tables, excluding design-isolated tables (param_, Calculation)
         all_tables = {table.name for table in self.model.tables}
         connected_tables = set(connections.keys())
-        isolated_tables = list(all_tables - connected_tables)
+        all_isolated = list(all_tables - connected_tables)
+
+        # Separate into data tables and design tables
+        isolated_data_tables = []
+        isolated_design_tables = []
+
+        for table_name in all_isolated:
+            table_name_lower = table_name.lower()
+            if table_name_lower.startswith('param_') or table_name_lower == 'calculations':
+                isolated_design_tables.append(table_name)
+            else:
+                isolated_data_tables.append(table_name)
+
+        # Use data tables for isolated_tables warning
+        isolated_tables = isolated_data_tables
+
+        # Log design-isolated tables (to report separately)
+        if isolated_design_tables:
+            print(f"\n✓ Design-isolated tables (expected to be unconnected):")
+            for table in sorted(isolated_design_tables):
+                print(f"   - {table}")
+
+        if isolated_data_tables:
+            print(f"\n⚠️  Isolated data tables (may require review):")
+            for table in sorted(isolated_data_tables):
+                print(f"   - {table}")
         
         # Counts
         bidirectional = sum(
@@ -147,15 +207,21 @@ class RelationshipAnalyzer:
             if 'both' in a.cross_filtering.lower()
         )
         
-        one_to_many = sum(
-            1 for a in self.analyses 
-            if a.relationship_type in ['one-to-many', 'many-to-one']
-        )
+        # Count by relationship type (inside the loop)
+        one_to_many = 0
+        many_to_one = 0
+        one_to_one = 0
+        many_to_many = 0
         
-        many_to_many = sum(
-            1 for a in self.analyses 
-            if a.relationship_type == 'many-to-many'
-        )
+        for a in self.analyses:
+            if a.relationship_type == 'one-to-many':
+                one_to_many += 1
+            elif a.relationship_type == 'many-to-one':
+                many_to_one += 1
+            elif a.relationship_type == 'one-to-one':
+                one_to_one += 1
+            elif a.relationship_type == 'many-to-many':
+                many_to_many += 1
         
         self.statistics = RelationshipStatistics(
             total_relationships=len(self.analyses),
@@ -163,6 +229,8 @@ class RelationshipAnalyzer:
             inactive_relationships=sum(1 for a in self.analyses if not a.is_active),
             bidirectional_relationships=bidirectional,
             one_to_many_count=one_to_many,
+            many_to_one_count=many_to_one,
+            one_to_one_count=one_to_one,
             many_to_many_count=many_to_many,
             tables_with_most_relationships=sorted_connections[:10],
             hub_tables=hub_tables,

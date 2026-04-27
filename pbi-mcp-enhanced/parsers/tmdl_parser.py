@@ -154,13 +154,14 @@ class TMDLParser:
         try:
             content = file_path.read_text(encoding='utf-8')
             
-            # Split by relationship blocks
+            # Split by relationship blocks (relationship keyword followed by UUID)
             rel_blocks = re.split(r'\nrelationship\s+', content)
             
             for block in rel_blocks[1:]:  # Skip first empty block
                 # Extract relationship properties from format: fromColumn: Table.Column
-                from_column_match = re.search(r'fromColumn:\s*(.+?)\.(.+)', block)
-                to_column_match = re.search(r'toColumn:\s*(.+?)\.(.+)', block)
+                # Updated regex to handle whitespace and line breaks
+                from_column_match = re.search(r'fromColumn:\s*(.+?)\s*\.\s*(.+?)(?:\n|$)', block, re.MULTILINE)
+                to_column_match = re.search(r'toColumn:\s*(.+?)\s*\.\s*(.+?)(?:\n|$)', block, re.MULTILINE)
                 
                 if from_column_match and to_column_match:
                     from_table = from_column_match.group(1).strip()
@@ -168,11 +169,16 @@ class TMDLParser:
                     to_table = to_column_match.group(1).strip()
                     to_column = to_column_match.group(2).strip()
                     
-                    # Clean quotes
-                    from_table = from_table.strip("'\"")
-                    from_column = from_column.strip("'\"")
-                    to_table = to_table.strip("'\"")
-                    to_column = to_column.strip("'\"")
+                    # Clean quotes and whitespace
+                    from_table = from_table.strip("'\" \t")
+                    from_column = from_column.strip("'\" \t")
+                    to_table = to_table.strip("'\" \t")
+                    to_column = to_column.strip("'\" \t")
+                    
+                    # Skip if any field is empty (malformed relationship)
+                    if not all([from_table, from_column, to_table, to_column]):
+                        print(f"Warning: Skipping malformed relationship: {from_table}.{from_column} → {to_table}.{to_column}")
+                        continue
                     
                     # Generate a name for the relationship
                     rel_name = f"{from_table}_{from_column}_to_{to_table}_{to_column}"
@@ -186,9 +192,13 @@ class TMDLParser:
                         cardinality="many_to_one",
                         is_active=True
                     ))
+                else:
+                    # BUG FIX #5: Log relationships that fail to parse
+                    print(f"Warning: Failed to parse relationship block (missing fromColumn or toColumn):")
+                    print(f"  Block preview: {block[:100]}...")
         
         except Exception as e:
-            print(f"Warning: Failed to parse relationships: {e}")
+            print(f"Warning: Failed to parse relationships file: {e}")
         
         return relationships
     

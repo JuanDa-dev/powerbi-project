@@ -86,27 +86,33 @@ class DAXComplexityAnalyzer:
         if not analyses:
             return DAXComplexityStats()
         
+        # Filter out placeholder measures for complexity analysis
+        non_placeholder_analyses = [a for a in analyses if not a.is_placeholder]
+        
+        if not non_placeholder_analyses:
+            return DAXComplexityStats()
+        
         # Expression lengths
-        lengths = [a.expression_length for a in analyses]
+        lengths = [a.expression_length for a in non_placeholder_analyses]
         sorted_lengths = sorted(lengths)
         
         # Complexity scores
-        complexity_scores = [a.complexity_score for a in analyses]
+        complexity_scores = [a.complexity_score for a in non_placeholder_analyses]
         
         # Nesting levels
-        nesting_levels = [a.nesting_level for a in analyses]
+        nesting_levels = [a.nesting_level for a in non_placeholder_analyses]
         
         # Function analysis
         all_functions = []
-        for analysis in analyses:
+        for analysis in non_placeholder_analyses:
             all_functions.extend(analysis.dax_functions)
         
         function_counter = Counter(all_functions)
         most_common = function_counter.most_common(10)
         
         # Dependencies
-        measures_with_deps = [a for a in analyses if a.referenced_measures]
-        dependency_counts = [len(a.referenced_measures) for a in analyses]
+        measures_with_deps = [a for a in non_placeholder_analyses if a.referenced_measures]
+        dependency_counts = [len(a.referenced_measures) for a in non_placeholder_analyses]
         
         # Categorize complexity
         simple = sum(1 for s in complexity_scores if s < 10)
@@ -114,7 +120,7 @@ class DAXComplexityAnalyzer:
         complex_count = sum(1 for s in complexity_scores if s > 30)
         
         # Top complex measures
-        top_complex = sorted(analyses, key=lambda x: x.complexity_score, reverse=True)[:10]
+        top_complex = sorted(non_placeholder_analyses, key=lambda x: x.complexity_score, reverse=True)[:10]
         top_complex_data = [
             {
                 'name': m.name,

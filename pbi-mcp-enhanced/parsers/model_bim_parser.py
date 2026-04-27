@@ -34,6 +34,7 @@ class Measure:
     is_hidden: bool = False
     lineage_tag: Optional[str] = None
     display_folder: Optional[str] = None
+    is_placeholder: bool = False  # True if expression is empty/None (not implemented)
 
 
 @dataclass
@@ -56,6 +57,8 @@ class Relationship:
     cross_filtering_behavior: str = "oneDirection"
     is_active: bool = True
     cardinality: Optional[str] = None
+    from_cardinality: Optional[str] = None  # e.g. "many"
+    to_cardinality: Optional[str] = None  # e.g. "one"
     lineage_tag: Optional[str] = None
 
 
@@ -159,12 +162,89 @@ class ModelBIMParser:
         
         return self.model
     
+    def _extract_expression(self, expression_data: Any) -> tuple[str, bool]:
+        """
+        Extract and clean DAX expression from JSON field.
+        
+        Args:
+            expression_data: Raw expression data (can be string, list, None)
+        
+        Returns:
+            Tuple of (cleaned_expression, is_placeholder)
+        """
+        if expression_data is None:
+            return "", True
+        
+        # If it's a list (sometimes expressions are stored as array of lines)
+        if isinstance(expression_data, list):
+            expr = "\n".join(str(line) for line in expression_data)
+        else:
+            expr = str(expression_data).strip()
+        
+        # Check if expression is empty or placeholder
+        if not expr or expr == "" or len(expr.strip()) <= 3:
+            return "", True
+        
+        return expr, False
+    
+    def _validate_table_name(self, table_name: str, table_data: Dict) -> bool:
+        """
+        Validate table name against strict rules.
+
+        REGLA: table['name'] es válido SOLO si:
+          1. Es string
+          2. No contiene saltos de línea (\n)
+          3. Longitud < 100 caracteres
+          4. No empieza con '//' o '/*' (comentarios DAX)
+          5. No contiene '=' o '[' (expresiones DAX)
+
+        Returns:
+            True if name is valid, False otherwise
+        """
+        if not table_name or not isinstance(table_name, str):
+            return False
+
+        table_name = str(table_name).strip()
+
+        # Rule 2: No newlines
+        if '\n' in table_name:
+            return False
+
+        # Rule 3: Length < 100
+        if len(table_name) > 100:
+            return False
+
+        # Rule 4: No DAX comments
+        if table_name.startswith('//') or table_name.startswith('/*'):
+            return False
+
+        # Rule 5: No DAX expressions
+        if '=' in table_name or '[' in table_name:
+            return False
+
+        return True
+
     def _parse_tables(self, tables_data: List[Dict]) -> List[Table]:
         """Parse tables from raw data"""
         tables = []
-        
+        invalid_table_count = 0
+
         for table_data in tables_data:
             table_name = table_data.get('name', 'Unknown')
+
+            # ========== BUG FIX #1B: Comprehensive table name validation ==========
+            if not self._validate_table_name(table_name, table_data):
+                invalid_table_count += 1
+                description = table_data.get('description', 'N/A')
+                expression = table_data.get('expression', 'N/A')
+                print(f"⚠️  WARNING: Invalid table name detected (likely parsing error):")
+                print(f"   Invalid name: {repr(str(table_name)[:80])}")
+                print(f"   Description: {repr(str(description)[:80] if description else 'N/A')}")
+                print(f"   Expression: {repr(str(expression)[:80] if expression else 'N/A')}")
+                print(f"   Skipping this entry.")
+                continue
+
+            table_name = str(table_name).strip()
             
             # Parse columns
             columns = []
@@ -185,15 +265,19 @@ class ModelBIMParser:
             # Parse measures
             measures = []
             for measure_data in table_data.get('measures', []):
+                expression, is_placeholder = self._extract_expression(
+                    measure_data.get('expression')
+                )
                 measure = Measure(
                     name=measure_data.get('name', 'Unknown'),
-                    expression=measure_data.get('expression', ''),
+                    expression=expression,
                     table=table_name,
                     format_string=measure_data.get('formatString'),
                     description=measure_data.get('description'),
                     is_hidden=measure_data.get('isHidden', False),
                     lineage_tag=measure_data.get('lineageTag'),
-                    display_folder=measure_data.get('displayFolder')
+                    display_folder=measure_data.get('displayFolder'),
+                    is_placeholder=is_placeholder
                 )
                 measures.append(measure)
             
@@ -223,7 +307,11 @@ class ModelBIMParser:
                 partitions=table_data.get('partitions', [])
             )
             tables.append(table)
-        
+
+        # BUG FIX #1B: Report skipped tables count
+        if invalid_table_count > 0:
+            print(f"\n✓ Summary: {invalid_table_count} table(s) skipped due to invalid names")
+
         return tables
     
     def _parse_relationships(self, rel_data: List[Dict]) -> List[Relationship]:
@@ -239,7 +327,9 @@ class ModelBIMParser:
                 to_column=rel.get('toColumn', 'Unknown'),
                 cross_filtering_behavior=rel.get('crossFilteringBehavior', 'oneDirection'),
                 is_active=rel.get('isActive', True),
-                cardinality=rel.get('fromCardinality'),
+                cardinality=rel.get('fromCardinality'),  # Keep for backward compatibility
+                from_cardinality=rel.get('fromCardinality'),  # New: cardinality of from side
+                to_cardinality=rel.get('toCardinality'),  # New: cardinality of to side
                 lineage_tag=rel.get('lineageTag')
             )
             relationships.append(relationship)
