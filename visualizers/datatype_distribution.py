@@ -30,12 +30,49 @@ class DatatypeDistributionBuilder:
         
         for table in self.tables:
             for column in table.get('columns', []):
-                datatype = column.get('datatype', 'Unknown')
-                datatypes[datatype] += 1
+                col_name = column.get('name', '')
+                col_type = column.get('dataType', 'Unknown')  # Fix: dataType with capital T
+                
+                # Classify column type
+                column_type = self._classify_column_type(col_name, col_type)
+                datatypes[column_type] += 1
         
         return dict(datatypes)
     
-    def create_visualization(self, output_file: str, figsize: tuple = (12, 8)):
+    def _classify_column_type(self, col_name: str, datatype: str) -> str:
+        """Classify column type based on name and datatype"""
+        col_lower = col_name.lower()
+        
+        # Detect calculated columns (contain "=")
+        if ' = ' in col_name:
+            return 'Calculated Column'
+        
+        # Classify by Power BI datatype
+        if datatype == 'string':
+            return 'Text'
+        elif datatype in ['int64', 'int', 'integer']:
+            return 'Whole Number'
+        elif datatype in ['double', 'real', 'float', 'decimal']:
+            return 'Decimal Number'
+        elif datatype in ['dateTime', 'date']:
+            if 'date' in col_lower or 'fecha' in col_lower or 'posting' in col_lower:
+                return 'Date'
+            return 'DateTime'
+        elif datatype == 'boolean':
+            return 'True/False'
+        elif datatype == 'binary':
+            return 'Binary'
+        else:
+            # For unknown types, try to infer from name
+            if any(k in col_lower for k in ['amt', 'amount', 'qty', 'quantity', 'count', 'total']):
+                return 'Whole Number'
+            elif any(k in col_lower for k in ['price', 'rate', 'pct', 'percent']):
+                return 'Decimal Number'
+            elif any(k in col_lower for k in ['date', 'fecha', 'posting', 'month', 'day']):
+                return 'Date'
+            return f'Other ({datatype})'
+    
+    def create_visualization(self, output_file: str, figsize: tuple = (14, 8)):
         """Create bar chart visualization"""
         datatype_dist = self._extract_datatype_distribution()
         
@@ -50,11 +87,22 @@ class DatatypeDistributionBuilder:
         # Create figure
         fig, ax = plt.subplots(figsize=figsize, dpi=150)
         
-        # Color palette
-        colors = plt.cm.Set3(range(len(types)))
+        # Color palette with meaningful colors for data types
+        color_map = {
+            'Text': '#3498db',
+            'Whole Number': '#2ecc71',
+            'Decimal Number': '#f39c12',
+            'Date': '#e74c3c',
+            'DateTime': '#e67e22',
+            'Calculated Column': '#9b59b6',
+            'True/False': '#1abc9c',
+            'Binary': '#34495e'
+        }
+        
+        colors = [color_map.get(t, '#95a5a6') for t in types]
         
         # Create bar chart
-        bars = ax.bar(types, counts, color=colors, alpha=0.8, edgecolor='black', linewidth=1.5)
+        bars = ax.bar(types, counts, color=colors, alpha=0.85, edgecolor='black', linewidth=1.5)
         
         # Add value labels on bars
         for bar in bars:
@@ -65,25 +113,38 @@ class DatatypeDistributionBuilder:
                 f'{int(height)}',
                 ha='center',
                 va='bottom',
-                fontsize=10,
+                fontsize=11,
                 fontweight='bold'
             )
         
         # Styling
-        ax.set_xlabel('Data Type', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Column Count', fontsize=12, fontweight='bold')
+        ax.set_xlabel('Data Type', fontsize=13, fontweight='bold')
+        ax.set_ylabel('Column Count', fontsize=13, fontweight='bold')
         ax.set_title(
-            'Semantic Model Datatype Distribution\nColumn Types Across All Tables',
+            'Semantic Model Column Type Distribution\nAcross All Tables',
             fontsize=14,
             fontweight='bold',
             pad=20
         )
         
-        plt.xticks(rotation=45, ha='right')
+        plt.xticks(rotation=45, ha='right', fontsize=11)
+        plt.yticks(fontsize=10)
         
         # Add grid for readability
         ax.grid(axis='y', alpha=0.3, linestyle='--')
         ax.set_axisbelow(True)
+        
+        # Add total at bottom
+        total = sum(counts)
+        ax.text(
+            0.99, 0.02,
+            f'Total Columns: {total}',
+            transform=ax.transAxes,
+            fontsize=11,
+            verticalalignment='bottom',
+            horizontalalignment='right',
+            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        )
         
         plt.tight_layout()
         

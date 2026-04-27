@@ -51,19 +51,47 @@ class TableParser:
     def _extract_columns(self, content: str) -> List[Dict[str, str]]:
         """Extract columns from TMDL content"""
         columns = []
-        col_pattern = r"column\s+(['\"]?)([^'\"\n]+)\1\s*\n((?:\t[^\n]*\n)*?)"
-        
-        for match in re.finditer(col_pattern, content):
-            col_name = match.group(2).strip()
-            col_block = match.group(3)
-            
-            datatype_match = re.search(r'dataType:\s*(\w+)', col_block)
-            datatype = datatype_match.group(1) if datatype_match else 'string'
-            
-            columns.append({
-                'name': col_name,
-                'dataType': datatype
-            })
+        lines = content.split('\n')
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            # Look for column definition at indent level 1 (single tab)
+            if line.strip().startswith('column '):
+                col_def = line.strip()
+                col_name = col_def.replace('column ', '').strip()
+                
+                # Initialize column data
+                datatype = 'string'
+                
+                # Look ahead for column properties (indented with at least 2 tabs)
+                j = i + 1
+                while j < len(lines):
+                    prop_line = lines[j]
+                    if not prop_line.strip():
+                        # Skip blank lines
+                        j += 1
+                        continue
+                    # Stop if we hit a property at lower indent level (new column)
+                    if prop_line and not prop_line.startswith('\t\t'):
+                        break
+                    # Extract dataType
+                    if 'dataType:' in prop_line:
+                        datatype_match = re.search(r'dataType\s*:\s*(\S+)', prop_line)
+                        if datatype_match:
+                            datatype = datatype_match.group(1)
+                    j += 1
+                
+                # Detect if it's a calculated column
+                is_calculated = ' = ' in col_name
+                
+                columns.append({
+                    'name': col_name,
+                    'dataType': datatype,
+                    'is_calculated': is_calculated
+                })
+                i = j if j > i + 1 else i + 1
+            else:
+                i += 1
         
         return columns
     
