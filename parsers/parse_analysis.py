@@ -136,31 +136,58 @@ class AnalysisParser:
         rel_from = sum(1 for r in self.relationships if r['from_table'] == table_name)
         rel_to = sum(1 for r in self.relationships if r['to_table'] == table_name)
         
-        # Classify
+        # Classify (order matters!)
         classification = 'DIMENSION'
         confidence = 0.5
         reasoning = "Default classification"
         
-        if measure_count > 0 and col_count == 0:
+        # 1. CALCULATION - DAX measure containers (many measures, few/no columns)
+        if measure_count >= 10 and col_count <= 1:
             classification = 'CALCULATION'
             confidence = 0.95
             reasoning = f"DAX measure container ({measure_count} measures)"
-        elif table_data['has_datatable'] or ('param' in table_name.lower() and col_count <= 3):
+        
+        # 2. PARAMETER - Control/slicer tables (param_ prefix or few columns)
+        elif 'param' in table_name.lower() and col_count <= 3:
             classification = 'PARAMETER'
             confidence = 0.95
             reasoning = "Control/slicer parameter table"
-        elif 'bridge' in table_name.lower() and numeric_count <= 2 and rel_from >= 1 and rel_to >= 1:
+        
+        # 3. BRIDGE - Many-to-many resolvers (bridge_ prefix or specific pattern)
+        elif 'bridge' in table_name.lower():
             classification = 'BRIDGE'
+            confidence = 0.90
+            reasoning = f"Bridge table (rel_from={rel_from}, rel_to={rel_to})"
+        
+        # 4. FACT - Central fact table (fact_ prefix or many relationships+many columns)
+        elif 'fact' in table_name.lower():
+            classification = 'FACT'
             confidence = 0.95
-            reasoning = "Bridge table resolving many-to-many"
-        elif numeric_count >= 2 and rel_from >= 2:
+            reasoning = f"Fact table ({col_count} columns, {rel_from} outgoing relationships)"
+        
+        # 5. FACT - By pattern (many numeric cols and many relationships)
+        elif numeric_count >= 2 and rel_from >= 3:
             classification = 'FACT'
             confidence = 0.85
-            reasoning = f"Multiple numeric columns ({numeric_count}), many-side relationships ({rel_from})"
+            reasoning = f"Multiple numeric columns ({numeric_count}), many relationships ({rel_from})"
+        
+        # 6. FACT - Large transaction-like table (many columns, many relationships)
+        elif col_count >= 20 and rel_from >= 3:
+            classification = 'FACT'
+            confidence = 0.80
+            reasoning = f"Large transaction table ({col_count} columns, {rel_from} relationships)"
+        
+        # 7. CALENDAR/TIME DIMENSION
         elif 'calendar' in table_name.lower() or 'calendario' in table_name.lower() or date_count >= 3:
             classification = 'DIMENSION'
             confidence = 0.95
             reasoning = "Calendar/time dimension"
+        
+        # 8. DIMENSION - Default for remaining tables
+        else:
+            classification = 'DIMENSION'
+            confidence = 0.5
+            reasoning = f"Dimension table ({col_count} columns, {rel_to} incoming)"
         
         return {
             'table_name': table_name,
