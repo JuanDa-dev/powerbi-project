@@ -21,6 +21,18 @@ from parsers.parse_pages import parse_pages
 from parsers.parse_datasources import parse_datasources
 from parsers.parse_analysis import parse_analysis
 
+# Import visualizers
+try:
+    from visualizers.relationship_graph import create_relationship_graph
+    from visualizers.measure_dependency import create_measure_dependency_dag
+    from visualizers.complexity_heatmap import create_complexity_heatmap
+    from visualizers.schema_distribution import create_schema_distribution
+    from visualizers.datatype_distribution import create_datatype_distribution
+    VISUALIZERS_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️  Visualizers not available: {e}")
+    VISUALIZERS_AVAILABLE = False
+
 
 class DocumentationGenerator:
     """Generates documentation from parsed JSON files"""
@@ -327,6 +339,73 @@ def main():
     extended_file.write_text(extended_doc, encoding='utf-8')
     print("✓")
     
+    # ========== STEP 3: GENERATE VISUALIZATIONS ==========
+    if VISUALIZERS_AVAILABLE:
+        print("")
+        print("📊 [3/3] Generating visualizations...")
+        
+        graphs_dir = output_dir / "graphs"
+        graphs_dir.mkdir(exist_ok=True)
+        
+        # 1. Relationship Graph
+        try:
+            print("  • Generating relationship graph...", end=" ", flush=True)
+            rel_result = create_relationship_graph(
+                str(data_dir / "tables.json"),
+                str(data_dir / "relationships.json"),
+                str(graphs_dir / "relationship_graph.png"),
+                str(graphs_dir / "relationship_graph.html")
+            )
+            print("✓")
+        except Exception as e:
+            print(f"✗ ({str(e)[:40]})")
+        
+        # 2. Measure Dependency DAG
+        try:
+            print("  • Generating measure dependency DAG...", end=" ", flush=True)
+            dep_result = create_measure_dependency_dag(
+                str(data_dir / "measures.json"),
+                str(graphs_dir / "measure_dependency.png")
+            )
+            print("✓")
+        except Exception as e:
+            print(f"✗ ({str(e)[:40]})")
+        
+        # 3. Complexity Heatmap
+        try:
+            print("  • Generating complexity heatmap...", end=" ", flush=True)
+            heat_result = create_complexity_heatmap(
+                str(data_dir / "tables.json"),
+                str(data_dir / "measures.json"),
+                str(data_dir / "analysis.json"),
+                str(graphs_dir / "complexity_heatmap.png")
+            )
+            print("✓")
+        except Exception as e:
+            print(f"✗ ({str(e)[:40]})")
+        
+        # 4. Schema Distribution
+        try:
+            print("  • Generating schema distribution chart...", end=" ", flush=True)
+            schema_result = create_schema_distribution(
+                str(data_dir / "analysis.json"),
+                str(graphs_dir / "schema_type_donut.png")
+            )
+            print("✓")
+        except Exception as e:
+            print(f"✗ ({str(e)[:40]})")
+        
+        # 5. Datatype Distribution
+        try:
+            print("  • Generating datatype distribution chart...", end=" ", flush=True)
+            dtype_result = create_datatype_distribution(
+                str(data_dir / "tables.json"),
+                str(graphs_dir / "datatype_distribution.png")
+            )
+            print("✓")
+        except Exception as e:
+            print(f"✗ ({str(e)[:40]})")
+    
     # ========== SUMMARY ==========
     print("")
     print("=" * 80)
@@ -345,6 +424,14 @@ def main():
     print(f"  • TECHNICAL_DOCUMENTATION.md")
     print(f"  • powerbi_analysis_{timestamp}.md")
     print("")
+    if VISUALIZERS_AVAILABLE:
+        print("📈 Visualizations (powerbi-project/graphs/):")
+        print(f"  • relationship_graph.png + .html")
+        print(f"  • measure_dependency.png")
+        print(f"  • complexity_heatmap.png")
+        print(f"  • schema_type_donut.png")
+        print(f"  • datatype_distribution.png")
+        print("")
     print(f"All files saved to: {output_dir}")
     print("=" * 80)
 

@@ -1,7 +1,0 @@
-# Output directory
-# Generated reports will be placed here
-*.md
-*.png
-*.jpg
-*.json
-!.gitkeep

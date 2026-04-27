@@ -10,7 +10,8 @@ pandas>=2.0.0
 matplotlib>=3.7.0
 seaborn>=0.12.0
 networkx>=3.1
-pygraphviz>=1.11
+pyvis>=0.3.0
+plotly>=5.17.0
 pillow>=10.0.0
 
 # Graph visualization (alternative to pygraphviz)
