@@ -17,6 +17,85 @@ from collections import defaultdict
 from datetime import datetime
 
 # ============================================================================
+# SECTION 0: REPORT ANALYSIS (Pages & Visualizations)
+# ============================================================================
+
+class ReportAnalyzer:
+    def __init__(self, pbip_root: str):
+        self.pbip_root = Path(pbip_root)
+        self.report_dir = self.pbip_root / "OnlineBaseline.Report" / "definition"
+        self.pages = {}
+        self.page_visuals_count = {}
+        
+    def analyze_pages(self) -> Dict[str, Any]:
+        """Extract pages and visualizations from report"""
+        pages_dir = self.report_dir / "pages"
+        
+        if not pages_dir.exists():
+            return {'pages': [], 'total_pages': 0, 'total_visuals': 0, 'pages_summary': []}
+        
+        total_visuals = 0
+        pages_summary = []
+        
+        # Read pages.json to get page order and metadata
+        pages_metadata_file = pages_dir / "pages.json"
+        page_order = []
+        
+        if pages_metadata_file.exists():
+            try:
+                pages_metadata = json.loads(pages_metadata_file.read_text(encoding='utf-8'))
+                page_order = pages_metadata.get('pageOrder', [])
+            except (json.JSONDecodeError, KeyError):
+                pass
+        
+        # If no page order found, scan directories
+        if not page_order:
+            page_order = [d.name for d in pages_dir.iterdir() if d.is_dir() and d.name != 'pages']
+        
+        # Analyze each page
+        for page_id in page_order:
+            page_dir = pages_dir / page_id
+            
+            if not page_dir.is_dir():
+                continue
+            
+            # Get page display name from page.json
+            page_file = page_dir / "page.json"
+            display_name = page_id
+            
+            if page_file.exists():
+                try:
+                    page_data = json.loads(page_file.read_text(encoding='utf-8'))
+                    display_name = page_data.get('displayName', page_id)
+                except (json.JSONDecodeError, KeyError):
+                    pass
+            
+            # Count visualizations (each visual is a directory in visuals/)
+            visuals_dir = page_dir / "visuals"
+            visuals_count = 0
+            
+            if visuals_dir.exists():
+                visuals_count = len([d for d in visuals_dir.iterdir() if d.is_dir()])
+            
+            total_visuals += visuals_count
+            pages_summary.append({
+                'page_id': page_id,
+                'page_name': page_id,
+                'display_name': display_name,
+                'visuals_count': visuals_count
+            })
+            
+            self.page_visuals_count[page_id] = visuals_count
+            self.pages[page_id] = display_name
+        
+        return {
+            'pages': list(self.pages.keys()),
+            'total_pages': len(self.pages),
+            'total_visuals': total_visuals,
+            'pages_summary': pages_summary
+        }
+
+# ============================================================================
 # SECTION 1: TABLE EXTRACTION & CLASSIFICATION
 # ============================================================================
 
@@ -320,9 +399,10 @@ class RelationshipAnalyzer:
 # ============================================================================
 
 class DocumentationGenerator:
-    def __init__(self, pbip_root: str):
+    def __init__(self, pbip_root: str, report_analysis: Dict[str, Any] = None):
         self.pbip_root = Path(pbip_root)
         self.tmdl_dir = self.pbip_root / "OnlineBaseline.SemanticModel" / "definition"
+        self.report_analysis = report_analysis or {}
         self.tables = {}
         self.relationships = []
         self.model_metadata = {}
@@ -480,7 +560,30 @@ class DocumentationGenerator:
         
         doc.append("## 5. Structure Pages and Visuals")
         doc.append("")
-        doc.append("Visual metadata available in OnlineBaseline.Report package.")
+        
+        # Add pages and visuals information
+        if self.report_analysis:
+            pages_summary = self.report_analysis.get('pages_summary', [])
+            total_pages = self.report_analysis.get('total_pages', 0)
+            total_visuals = self.report_analysis.get('total_visuals', 0)
+            
+            doc.append(f"**Total Pages:** {total_pages}")
+            doc.append(f"**Total Visualizations:** {total_visuals}")
+            doc.append("")
+            
+            if pages_summary:
+                doc.append("### Pages Details")
+                doc.append("")
+                doc.append("| Page | Display Name | Visualizations |")
+                doc.append("|------|--------------|-----------------|")
+                for page in pages_summary:
+                    page_name = page.get('page_name', 'N/A')
+                    display_name = page.get('display_name', page_name)
+                    visuals = page.get('visuals_count', 0)
+                    doc.append(f"| {page_name} | {display_name} | {visuals} |")
+                doc.append("")
+        else:
+            doc.append("Visual metadata available in OnlineBaseline.Report package.")
         
         return "\n".join(doc)
 
@@ -544,9 +647,21 @@ def main():
         json.dump(analysis_result, f, indent=2, ensure_ascii=False)
     print(f"✓ Relationship analysis saved: {analysis_file}")
     
+    # Step 2.5: Analyze Report Pages and Visuals
+    print("📄 [2.5/3] Analyzing report pages and visualizations...")
+    report_analyzer = ReportAnalyzer(str(pbip_root))
+    report_analysis = report_analyzer.analyze_pages()
+    print(f"✓ Found {report_analysis['total_pages']} page(s) with {report_analysis['total_visuals']} visualization(s) total")
+    
+    # Save report analysis
+    report_analysis_file = output_dir / "report_analysis.json"
+    with open(report_analysis_file, 'w', encoding='utf-8') as f:
+        json.dump(report_analysis, f, indent=2, ensure_ascii=False)
+    print(f"✓ Report analysis saved: {report_analysis_file}")
+    
     # Step 3: Generate Documentation
     print("📝 [3/3] Generating technical documentation...")
-    doc_gen = DocumentationGenerator(str(pbip_root))
+    doc_gen = DocumentationGenerator(str(pbip_root), report_analysis)
     doc_gen.extract_all_metadata()
     markdown_doc = doc_gen.generate_markdown()
     
