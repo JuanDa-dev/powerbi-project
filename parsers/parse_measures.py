@@ -30,22 +30,107 @@ class MeasureParser:
         return self.measures
     
     def _extract_measures(self, content: str, table_name: str):
-        """Extract measures from a table"""
-        measure_pattern = r'measure\s+([^\n=]+)(?:\s*=\s*((?:[^\n]|\n(?!\t))+)|$)'
+        """Extract measures from a table using improved parsing"""
+        lines = content.split('\n')
+        i = 0
         
-        for match in re.finditer(measure_pattern, content, re.MULTILINE):
-            measure_name = match.group(1).strip().strip("'\"")
-            measure_expression = match.group(2).strip() if match.group(2) else ""
+        while i < len(lines):
+            line = lines[i]
             
-            # Count DAX complexity
-            complexity_score = self._calculate_complexity(measure_expression)
-            
-            self.measures.append({
-                'name': measure_name,
-                'table': table_name,
-                'expression': measure_expression[:200] + "..." if len(measure_expression) > 200 else measure_expression,
-                'complexity_score': complexity_score
-            })
+            # Check if this line starts a measure definition
+            if re.match(r'\s*measure\s+', line):
+                # Extract measure name and check for inline expression
+                match = re.match(r'\s*measure\s+([^\s=]+)\s*(?:=\s*(.*))?', line)
+                
+                if match:
+                    measure_name = match.group(1).strip().strip("'\"")
+                    inline_expr = match.group(2).strip() if match.group(2) else ""
+                    
+                    expr_lines = []
+                    
+                    # Check if inline expression is just backticks - if so, continue to next lines
+                    if inline_expr and inline_expr != '```':
+                        expr_lines.append(inline_expr)
+                    elif inline_expr == '```':
+                        # Multiline expression coming
+                        expr_lines.append('[MULTILINE]')
+                    
+                    # Collect remaining expression lines
+                    i += 1
+                    measure_indent = len(line) - len(line.lstrip())
+                    in_expression = (inline_expr == '```' or bool(inline_expr))
+                    backtick_count = inline_expr.count('```')
+                    
+                    while i < len(lines):
+                        next_line = lines[i]
+                        next_stripped = next_line.lstrip()
+                        next_indent = len(next_line) - len(next_line.lstrip())
+                        
+                        # Stop if we hit another measure at same or lower indentation
+                        if next_stripped.startswith('measure ') and next_indent <= measure_indent:
+                            break
+                        
+                        # Stop if we hit table or other non-expression content
+                        if next_stripped.startswith('table '):
+                            break
+                        
+                        # Check for metadata lines that end the measure
+                        if (next_stripped.startswith(('lineageTag:', 'formatString:', 'annotation ', 'dataCategory:')) 
+                            and next_indent <= measure_indent + 8):
+                            break
+                        
+                        # Track backticks to find end of multiline expression
+                        backtick_count += next_line.count('```')
+                        
+                        # Add content lines
+                        if next_stripped:
+                            expr_lines.append(next_stripped)
+                        
+                        i += 1
+                        
+                        # Stop if we've closed all backticks
+                        if backtick_count >= 2 and in_expression:
+                            break
+                    
+                    # Join and clean expression
+                    full_expression = ' '.join(expr_lines)
+                    full_expression = self._clean_expression(full_expression)
+                    
+                    # Calculate complexity
+                    complexity_score = self._calculate_complexity(full_expression)
+                    
+                    # Store measure
+                    self.measures.append({
+                        'name': measure_name,
+                        'table': table_name,
+                        'expression': full_expression,
+                        'complexity_score': complexity_score
+                    })
+                else:
+                    i += 1
+            else:
+                i += 1
+    
+    def _clean_expression(self, expr: str) -> str:
+        """Clean up DAX expression"""
+        # Remove backticks
+        expr = expr.replace('```', ' ').strip()
+        
+        # Remove internal markers
+        expr = expr.replace('[MULTILINE]', '').strip()
+        
+        # Remove extra whitespace
+        expr = ' '.join(expr.split())
+        
+        # If expression is empty or just whitespace, mark as incomplete
+        if not expr:
+            return "[Expression not fully captured]"
+        
+        # Truncate very long expressions but keep first meaningful part
+        if len(expr) > 300:
+            expr = expr[:297] + "..."
+        
+        return expr
     
     def _calculate_complexity(self, expression: str) -> int:
         """Simple complexity score based on DAX functions"""
