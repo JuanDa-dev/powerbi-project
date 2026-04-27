@@ -34,10 +34,8 @@ wheels/
 *~
 
 # Generated outputs (from main.py - recreated on each run)
-powerbi-project/
-*.json
-TECHNICAL_DOCUMENTATION.md
-powerbi_analysis_*.md
+powerbi-project/data/
+powerbi-project/reports/
 
 # Temporary files
 *.tmp

@@ -66,15 +66,34 @@ run.bat ../RecursosFuente/OnlineBaseline.pbip
 
 ## 📊 Outputs
 
-### JSON Data Files (6 outputs)
-- **tables.json**: Table metadata (columns, dataypes, measures list)
+### Organized Output Structure
+
+All outputs are organized into two subdirectories for clarity:
+
+```
+powerbi-project/
+├── data/                          ← 📊 JSON data files (6 files)
+│   ├── tables.json               # Table metadata
+│   ├── relationships.json        # Model relationships
+│   ├── measures.json             # Measures with complexity scores
+│   ├── pages.json                # Report pages and visualizations
+│   ├── datasources.json          # Data source definitions
+│   └── analysis.json             # Table classifications + schema analysis
+│
+└── reports/                       ← 📝 Markdown documentation (2 files)
+    ├── TECHNICAL_DOCUMENTATION.md    # Executive summary
+    └── powerbi_analysis_TIMESTAMP.md # Extended analysis
+```
+
+### JSON Data Files (in `data/`)
+- **tables.json**: Table metadata (columns, datatypes, measures list)
 - **relationships.json**: Model relationships with cardinality
 - **measures.json**: Measures with DAX complexity scores (1-10)
 - **pages.json**: Report pages and visualization inventory
 - **datasources.json**: Data source definitions
 - **analysis.json**: Table classifications + schema analysis
 
-### Markdown Documentation (2 outputs)
+### Markdown Documentation (in `reports/`)
 - **TECHNICAL_DOCUMENTATION.md**: Executive summary with model overview
 - **powerbi_analysis_TIMESTAMP.md**: Extended analysis with detailed classifications
 

@@ -27,6 +27,8 @@ class DocumentationGenerator:
     
     def __init__(self, output_dir: Path, pbip_name: str):
         self.output_dir = output_dir
+        self.data_dir = output_dir / "data"
+        self.reports_dir = output_dir / "reports"
         self.pbip_name = pbip_name
         self.tables_data = []
         self.relationships_data = []
@@ -34,9 +36,13 @@ class DocumentationGenerator:
         self.pages_data = []
         self.datasources_data = []
         self.analysis_data = {}
+        
+        # Create subdirectories
+        self.data_dir.mkdir(exist_ok=True)
+        self.reports_dir.mkdir(exist_ok=True)
     
     def load_all_data(self, json_dir: Path):
-        """Load all generated JSON files"""
+        """Load all generated JSON files from data directory"""
         if (json_dir / "tables.json").exists():
             self.tables_data = json.loads((json_dir / "tables.json").read_text(encoding='utf-8'))
         if (json_dir / "relationships.json").exists():
@@ -251,6 +257,12 @@ def main():
     output_dir = Path.cwd() / "powerbi-project"
     output_dir.mkdir(exist_ok=True)
     
+    # Create subdirectories for organized output
+    data_dir = output_dir / "data"
+    reports_dir = output_dir / "reports"
+    data_dir.mkdir(exist_ok=True)
+    reports_dir.mkdir(exist_ok=True)
+    
     pbip_name = pbip_root.name
     
     print("=" * 80)
@@ -265,32 +277,32 @@ def main():
     
     # Parse tables
     print("  • Parsing tables...", end=" ", flush=True)
-    tables = parse_tables(str(tmdl_dir), str(output_dir / "tables.json"))
+    tables = parse_tables(str(tmdl_dir), str(data_dir / "tables.json"))
     print(f"✓ {len(tables)} tables")
     
     # Parse relationships
     print("  • Parsing relationships...", end=" ", flush=True)
-    relationships = parse_relationships(str(tmdl_dir), str(output_dir / "relationships.json"))
+    relationships = parse_relationships(str(tmdl_dir), str(data_dir / "relationships.json"))
     print(f"✓ {len(relationships)} relationships")
     
     # Parse measures
     print("  • Parsing measures...", end=" ", flush=True)
-    measures = parse_measures(str(tmdl_dir), str(output_dir / "measures.json"))
+    measures = parse_measures(str(tmdl_dir), str(data_dir / "measures.json"))
     print(f"✓ {len(measures)} measures")
     
     # Parse pages
     print("  • Parsing pages...", end=" ", flush=True)
-    pages = parse_pages(str(pbip_root), str(output_dir / "pages.json"))
+    pages = parse_pages(str(pbip_root), str(data_dir / "pages.json"))
     print(f"✓ {len(pages)} pages")
     
     # Parse datasources
     print("  • Parsing datasources...", end=" ", flush=True)
-    datasources = parse_datasources(str(tmdl_dir), str(output_dir / "datasources.json"))
+    datasources = parse_datasources(str(tmdl_dir), str(data_dir / "datasources.json"))
     print(f"✓ {len(datasources)} datasources")
     
     # Parse analysis
     print("  • Running analysis...", end=" ", flush=True)
-    analysis = parse_analysis(str(tmdl_dir), str(output_dir / "analysis.json"))
+    analysis = parse_analysis(str(tmdl_dir), str(data_dir / "analysis.json"))
     print("✓")
     
     # ========== STEP 2: GENERATE DOCUMENTATION ==========
@@ -298,12 +310,12 @@ def main():
     print("📝 [2/2] Generating documentation...")
     
     doc_gen = DocumentationGenerator(output_dir, pbip_name)
-    doc_gen.load_all_data(output_dir)
+    doc_gen.load_all_data(data_dir)
     
     # Technical Documentation
     print("  • Generating TECHNICAL_DOCUMENTATION.md...", end=" ", flush=True)
     tech_doc = doc_gen.generate_technical_documentation()
-    tech_file = output_dir / "TECHNICAL_DOCUMENTATION.md"
+    tech_file = reports_dir / "TECHNICAL_DOCUMENTATION.md"
     tech_file.write_text(tech_doc, encoding='utf-8')
     print("✓")
     
@@ -311,7 +323,7 @@ def main():
     print("  • Generating extended analysis...", end=" ", flush=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     extended_doc = doc_gen.generate_extended_documentation()
-    extended_file = output_dir / f"powerbi_analysis_{timestamp}.md"
+    extended_file = reports_dir / f"powerbi_analysis_{timestamp}.md"
     extended_file.write_text(extended_doc, encoding='utf-8')
     print("✓")
     
@@ -321,7 +333,7 @@ def main():
     print("✅ ANALYSIS COMPLETE")
     print("=" * 80)
     print("")
-    print("Generated Files (JSON parsers output):")
+    print("📊 Data Files (powerbi-project/data/):")
     print(f"  • tables.json")
     print(f"  • relationships.json")
     print(f"  • measures.json")
@@ -329,7 +341,7 @@ def main():
     print(f"  • datasources.json")
     print(f"  • analysis.json")
     print("")
-    print("Generated Documentation:")
+    print("📝 Documentation Files (powerbi-project/reports/):")
     print(f"  • TECHNICAL_DOCUMENTATION.md")
     print(f"  • powerbi_analysis_{timestamp}.md")
     print("")
