@@ -69,23 +69,176 @@ class PageParser:
             except (json.JSONDecodeError, KeyError):
                 pass
         
-        # Count visualizations
+        # Parse visualizations
         visuals_dir = page_dir / "visuals"
         visuals_count = 0
         visual_ids = []
+        visuals = []
+        charts = []
         
         if visuals_dir.exists():
             for visual_dir in visuals_dir.iterdir():
                 if visual_dir.is_dir():
                     visuals_count += 1
                     visual_ids.append(visual_dir.name)
+                    
+                    # Parse detailed visual info
+                    visual_info = self._parse_visual(visual_dir)
+                    if visual_info:
+                        visuals.append(visual_info)
+                        
+                        # Collect charts separately
+                        if visual_info.get('category') == 'CHART':
+                            charts.append(visual_info)
         
         return {
             'page_id': page_id,
             'display_name': display_name,
             'visuals_count': visuals_count,
-            'visual_ids': visual_ids
+            'visual_ids': visual_ids,
+            'visuals': visuals,
+            'charts': charts,
+            'chart_count': len(charts)
         }
+    
+    def _parse_visual(self, visual_dir: Path) -> Dict[str, Any]:
+        """Parse a single visual and extract type, category, and info"""
+        visual_file = visual_dir / "visual.json"
+        
+        if not visual_file.exists():
+            return None
+        
+        try:
+            visual_data = json.loads(visual_file.read_text(encoding='utf-8'))
+        except (json.JSONDecodeError, KeyError):
+            return None
+        
+        visual_id = visual_dir.name
+        visual_type = visual_data.get('visual', {}).get('visualType', 'unknown')
+        
+        # Categorize visual
+        category = self._categorize_visual(visual_type)
+        
+        # Extract descriptive info
+        visual_info = {
+            'visual_id': visual_id,
+            'visual_type': visual_type,
+            'category': category,
+        }
+        
+        # Extract fields/measures for descriptive name
+        if category == 'CHART':
+            fields = self._extract_chart_fields(visual_data)
+            visual_info['fields'] = fields
+            visual_info['display_name'] = self._generate_visual_name(visual_type, fields)
+        elif category == 'TABLE':
+            fields = self._extract_table_fields(visual_data)
+            visual_info['fields'] = fields
+            visual_info['display_name'] = f"{visual_type.title()} of {fields[0] if fields else 'Data'}"
+        else:
+            visual_info['display_name'] = visual_type.title()
+        
+        return visual_info
+    
+    def _categorize_visual(self, visual_type: str) -> str:
+        """Categorize visual by type"""
+        chart_types = [
+            'columnChart', 'lineChart', 'areaChart', 'barChart', 
+            'scatterChart', 'bubbleChart', 'donutChart', 'pieChart',
+            'waterfallChart', 'ribbonChart', 'gaugeChart', 'KPI',
+            'lineClusteredColumnComboChart', 'lineStackedColumnComboChart',
+            'columnClusteredLineChart', 'columnStackedLineChart',
+            'comboChart', 'clusteredBarChart', 'stackedBarChart',
+            'clusteredColumnChart', 'stackedColumnChart', 'stackedAreaChart',
+            'clusteredAreaChart', 'funnelChart', 'treemapChart',
+            'radialGaugeChart', 'smallMultiple'
+        ]
+        
+        table_types = ['table', 'pivotTable', 'matrix']
+        slicer_types = ['slicer', 'ChicletSlicer1448559807354', 'timeSlicer']
+        button_types = ['actionButton', 'button']
+        text_types = ['textbox', 'shape']
+        card_types = ['cardVisual', 'card', 'multiRowCard', 'KPI']
+        
+        if visual_type in chart_types:
+            return 'CHART'
+        elif visual_type in table_types:
+            return 'TABLE'
+        elif visual_type in slicer_types:
+            return 'SLICER'
+        elif visual_type in button_types:
+            return 'BUTTON'
+        elif visual_type in text_types:
+            return 'TEXT'
+        elif visual_type in card_types:
+            return 'CARD'
+        else:
+            return 'OTHER'
+    
+    def _extract_chart_fields(self, visual_data: Dict) -> List[str]:
+        """Extract measure/dimension names from chart"""
+        fields = []
+        try:
+            query = visual_data.get('visual', {}).get('query', {})
+            query_state = query.get('queryState', {})
+            
+            # Get values (measures)
+            for item in query_state.get('Values', {}).get('projections', []):
+                nq_ref = item.get('nativeQueryRef', '')
+                if nq_ref:
+                    fields.append(nq_ref)
+            
+            # Get categories (dimensions)
+            for section in ['Rows', 'Columns']:
+                for item in query_state.get(section, {}).get('projections', []):
+                    nq_ref = item.get('nativeQueryRef', '')
+                    if nq_ref and nq_ref not in fields:
+                        fields.append(nq_ref)
+        except (KeyError, TypeError):
+            pass
+        
+        return fields[:3]  # Limit to 3 fields for display
+    
+    def _extract_table_fields(self, visual_data: Dict) -> List[str]:
+        """Extract field names from table"""
+        fields = []
+        try:
+            query = visual_data.get('visual', {}).get('query', {})
+            query_state = query.get('queryState', {})
+            
+            for section in ['Rows', 'Columns', 'Values']:
+                for item in query_state.get(section, {}).get('projections', []):
+                    nq_ref = item.get('nativeQueryRef', '')
+                    if nq_ref and nq_ref not in fields:
+                        fields.append(nq_ref)
+        except (KeyError, TypeError):
+            pass
+        
+        return fields[:3]
+    
+    def _generate_visual_name(self, visual_type: str, fields: List[str]) -> str:
+        """Generate descriptive name for visual"""
+        type_labels = {
+            'columnChart': 'Column Chart',
+            'lineChart': 'Line Chart',
+            'areaChart': 'Area Chart',
+            'barChart': 'Bar Chart',
+            'waterfallChart': 'Waterfall Chart',
+            'scatterChart': 'Scatter Plot',
+            'bubbleChart': 'Bubble Chart',
+            'pieChart': 'Pie Chart',
+            'donutChart': 'Donut Chart',
+            'ribbonChart': 'Ribbon Chart',
+            'gaugeChart': 'Gauge'
+        }
+        
+        base_name = type_labels.get(visual_type, visual_type.title())
+        
+        if fields:
+            field_str = ', '.join(fields[:2])
+            return f"{base_name}: {field_str}"
+        
+        return base_name
 
 
 def parse_pages(pbip_root: str, output_file: str = None) -> List[Dict[str, Any]]:
