@@ -1,0 +1,1014 @@
+[
+  {
+    "page_id": "22c7ce5dff80f3de8767",
+    "display_name": "Tooltip Colors",
+    "visuals_count": 1,
+    "visual_ids": [
+      "9f256dffa17c1573c0ef"
+    ],
+    "visuals": [
+      {
+        "visual_id": "9f256dffa17c1573c0ef",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      }
+    ],
+    "charts": [],
+    "chart_count": 0
+  },
+  {
+    "page_id": "5391aa8808c93667b8b7",
+    "display_name": "Supplier Analysis",
+    "visuals_count": 25,
+    "visual_ids": [
+      "003e92db3b1b63071d9e",
+      "0307ce4c62a6e6075e6e",
+      "3730d1dfe3480385881b",
+      "3d19406898324592e8be",
+      "4c45f71588a19e661621",
+      "5285cf613956028e0cc0",
+      "54f9b0270160153e3baa",
+      "69e4b9d108ecde3c6a70",
+      "7b3b7e0737e58d2735ae",
+      "81b52d6708428924917c",
+      "83172caa8dac9483cc28",
+      "8429826052961e8760bb",
+      "9c9c8861b1ed1acb028d",
+      "a9ed90f42bc7e98d0224",
+      "ae0a25637868c1a8090a",
+      "ae206fc960501ac40e6a",
+      "b88a920f29670dff3385",
+      "bd3c9c0c2742ee1b49c9",
+      "c060854ab0134c7dde5b",
+      "c14c0c993bae908a2a2c",
+      "cb36ec0e08c4ce2072aa",
+      "d090b7d7dd8c3318d3ad",
+      "d3b907546a1dd5c56b01",
+      "d4f9a3510898e0b168d6",
+      "ffd652dc107ad7c81b58"
+    ],
+    "visuals": [
+      {
+        "visual_id": "003e92db3b1b63071d9e",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "0307ce4c62a6e6075e6e",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "3730d1dfe3480385881b",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "3d19406898324592e8be",
+        "visual_type": "lineClusteredColumnComboChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Lineclusteredcolumncombochart"
+      },
+      {
+        "visual_id": "4c45f71588a19e661621",
+        "visual_type": "barChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Bar Chart"
+      },
+      {
+        "visual_id": "5285cf613956028e0cc0",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "54f9b0270160153e3baa",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "69e4b9d108ecde3c6a70",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "7b3b7e0737e58d2735ae",
+        "visual_type": "lineStackedColumnComboChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Linestackedcolumncombochart"
+      },
+      {
+        "visual_id": "81b52d6708428924917c",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "83172caa8dac9483cc28",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "8429826052961e8760bb",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "9c9c8861b1ed1acb028d",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "a9ed90f42bc7e98d0224",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "ae0a25637868c1a8090a",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "ae206fc960501ac40e6a",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "b88a920f29670dff3385",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "bd3c9c0c2742ee1b49c9",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "c060854ab0134c7dde5b",
+        "visual_type": "barChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Bar Chart"
+      },
+      {
+        "visual_id": "c14c0c993bae908a2a2c",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "cb36ec0e08c4ce2072aa",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "d090b7d7dd8c3318d3ad",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "d3b907546a1dd5c56b01",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "d4f9a3510898e0b168d6",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "ffd652dc107ad7c81b58",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      }
+    ],
+    "charts": [
+      {
+        "visual_id": "3d19406898324592e8be",
+        "visual_type": "lineClusteredColumnComboChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Lineclusteredcolumncombochart"
+      },
+      {
+        "visual_id": "4c45f71588a19e661621",
+        "visual_type": "barChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Bar Chart"
+      },
+      {
+        "visual_id": "7b3b7e0737e58d2735ae",
+        "visual_type": "lineStackedColumnComboChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Linestackedcolumncombochart"
+      },
+      {
+        "visual_id": "c060854ab0134c7dde5b",
+        "visual_type": "barChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Bar Chart"
+      }
+    ],
+    "chart_count": 4
+  },
+  {
+    "page_id": "568be0619a40527b328e",
+    "display_name": "Dictionary Suppliers",
+    "visuals_count": 21,
+    "visual_ids": [
+      "0b1a74dca8462a71e166",
+      "2911de89e150b527402d",
+      "3105f5055a8803802783",
+      "46e04640802087094eb2",
+      "50160cd26d90d2202986",
+      "6dedcb7c92205d76e0ac",
+      "70271705f5c728337f1a",
+      "7b2010a2d40072c9aee0",
+      "7bf236014a9363207194",
+      "7dbd94de8da956f68816",
+      "9b91235a94a930954e63",
+      "9e45ae3d7d8ebbb2717e",
+      "9f2fff9536ba0bbfe45c",
+      "b5a7f754e7108510edba",
+      "bbddb02783d46e2ce7d2",
+      "c3f4a7b27bad040b1d56",
+      "c4642ada87ba2d2635b0",
+      "dc092af0768601434981",
+      "e0e6486b0a2b4024e5c5",
+      "f04939952d10318520ea",
+      "ff3780c7cb7e7961923e"
+    ],
+    "visuals": [
+      {
+        "visual_id": "0b1a74dca8462a71e166",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "2911de89e150b527402d",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "3105f5055a8803802783",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "46e04640802087094eb2",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "50160cd26d90d2202986",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "6dedcb7c92205d76e0ac",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "70271705f5c728337f1a",
+        "visual_type": "advancedSlicerVisual",
+        "category": "OTHER",
+        "display_name": "Advancedslicervisual"
+      },
+      {
+        "visual_id": "7b2010a2d40072c9aee0",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "7bf236014a9363207194",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "7dbd94de8da956f68816",
+        "visual_type": "advancedSlicerVisual",
+        "category": "OTHER",
+        "display_name": "Advancedslicervisual"
+      },
+      {
+        "visual_id": "9b91235a94a930954e63",
+        "visual_type": "tableEx",
+        "category": "OTHER",
+        "display_name": "Tableex"
+      },
+      {
+        "visual_id": "9e45ae3d7d8ebbb2717e",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "9f2fff9536ba0bbfe45c",
+        "visual_type": "textSlicer",
+        "category": "OTHER",
+        "display_name": "Textslicer"
+      },
+      {
+        "visual_id": "b5a7f754e7108510edba",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "bbddb02783d46e2ce7d2",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "c3f4a7b27bad040b1d56",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "c4642ada87ba2d2635b0",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "dc092af0768601434981",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "e0e6486b0a2b4024e5c5",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "f04939952d10318520ea",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "ff3780c7cb7e7961923e",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      }
+    ],
+    "charts": [],
+    "chart_count": 0
+  },
+  {
+    "page_id": "9d62d2145c0be869dde5",
+    "display_name": "Volume & Trends",
+    "visuals_count": 23,
+    "visual_ids": [
+      "0c8d3bf286684e82b1a0",
+      "0f758c1a3a589b8072b8",
+      "1b911730376520e6d8e3",
+      "2347a1fd1431a7ab8189",
+      "242d7d47439dbe24aa0b",
+      "368936ed2905a391d3cc",
+      "3db3d44c3193a40d8224",
+      "49633744bd8785096e00",
+      "4e85a9350cd40a0a6de9",
+      "6c264b8765dd3dc6d3a0",
+      "81a7102028a67627ae27",
+      "8227d2ce84c5048a9ad4",
+      "997ad06f2068193283a8",
+      "99e042b31478080a5d37",
+      "a685e4fc957ae10dc25e",
+      "a88620c257bd357db2aa",
+      "c94ec0ef2acd507c368e",
+      "e4e97d41dc094372ae9b",
+      "e563081ca896eda6529b",
+      "e8c75d549408901ea333",
+      "f4f800d043da0068303d",
+      "f8d38113a000604d831d",
+      "fb03ffae76a0627b1a1e"
+    ],
+    "visuals": [
+      {
+        "visual_id": "0c8d3bf286684e82b1a0",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "0f758c1a3a589b8072b8",
+        "visual_type": "clusteredBarChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Clusteredbarchart"
+      },
+      {
+        "visual_id": "1b911730376520e6d8e3",
+        "visual_type": "lineClusteredColumnComboChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Lineclusteredcolumncombochart"
+      },
+      {
+        "visual_id": "2347a1fd1431a7ab8189",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "242d7d47439dbe24aa0b",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "368936ed2905a391d3cc",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "3db3d44c3193a40d8224",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "49633744bd8785096e00",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "4e85a9350cd40a0a6de9",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "6c264b8765dd3dc6d3a0",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "81a7102028a67627ae27",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "8227d2ce84c5048a9ad4",
+        "visual_type": "lineClusteredColumnComboChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Lineclusteredcolumncombochart"
+      },
+      {
+        "visual_id": "997ad06f2068193283a8",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "99e042b31478080a5d37",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "a685e4fc957ae10dc25e",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "a88620c257bd357db2aa",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "c94ec0ef2acd507c368e",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "e4e97d41dc094372ae9b",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "e563081ca896eda6529b",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "e8c75d549408901ea333",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "f4f800d043da0068303d",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "f8d38113a000604d831d",
+        "visual_type": "pivotTable",
+        "category": "TABLE",
+        "fields": [
+          "Cluster",
+          "tag_market",
+          "Supplier"
+        ],
+        "display_name": "Pivottable of Cluster"
+      },
+      {
+        "visual_id": "fb03ffae76a0627b1a1e",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      }
+    ],
+    "charts": [
+      {
+        "visual_id": "0f758c1a3a589b8072b8",
+        "visual_type": "clusteredBarChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Clusteredbarchart"
+      },
+      {
+        "visual_id": "1b911730376520e6d8e3",
+        "visual_type": "lineClusteredColumnComboChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Lineclusteredcolumncombochart"
+      },
+      {
+        "visual_id": "8227d2ce84c5048a9ad4",
+        "visual_type": "lineClusteredColumnComboChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Lineclusteredcolumncombochart"
+      }
+    ],
+    "chart_count": 3
+  },
+  {
+    "page_id": "a56436922be223ee6a9a",
+    "display_name": "Executive Overview",
+    "visuals_count": 28,
+    "visual_ids": [
+      "1616d21178ce5b75ac32",
+      "1b95553a7510104072a0",
+      "25f7a62d670e1d950137",
+      "35ff15039ab7765a26e6",
+      "3a4718ad78508c7245ed",
+      "45da5a998300c1b17e11",
+      "47625e7a4072304e5dc2",
+      "5aa27f108a04d73d2e4e",
+      "66549deae87c3dd0ce74",
+      "806f1d5c118050876c04",
+      "8c6df6fe94c830a601d4",
+      "8d41aefe3232c000ec70",
+      "97ad5cef059eb57681ea",
+      "98458abf161e67943300",
+      "a47c2ff0d976d7441061",
+      "ad7259a0b02d2c267507",
+      "b13cfb1440aaa58b676e",
+      "c02e9b5f90a2a9a52869",
+      "c051248463a0b107a782",
+      "d207b3023e5a80eb0d55",
+      "d320389c1d73835fb86b",
+      "d5adab8a568074401e02",
+      "d747c3145c332d195982",
+      "d8551cb67c5bece6b6b9",
+      "e382fd30a72462c5c841",
+      "ef5e628e7a976fd1ba25",
+      "f7b507df7c001dbccea6",
+      "fad843c7c7e6487e54d9"
+    ],
+    "visuals": [
+      {
+        "visual_id": "1616d21178ce5b75ac32",
+        "visual_type": "pivotTable",
+        "category": "TABLE",
+        "fields": [
+          "Category L1",
+          "cluster",
+          "total_spend"
+        ],
+        "display_name": "Pivottable of Category L1"
+      },
+      {
+        "visual_id": "1b95553a7510104072a0",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "25f7a62d670e1d950137",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "35ff15039ab7765a26e6",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "3a4718ad78508c7245ed",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "45da5a998300c1b17e11",
+        "visual_type": "cardVisual",
+        "category": "CARD",
+        "display_name": "Cardvisual"
+      },
+      {
+        "visual_id": "47625e7a4072304e5dc2",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "5aa27f108a04d73d2e4e",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "66549deae87c3dd0ce74",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "806f1d5c118050876c04",
+        "visual_type": "pivotTable",
+        "category": "TABLE",
+        "fields": [
+          "Cluster",
+          "Target Spend",
+          "Baseline"
+        ],
+        "display_name": "Pivottable of Cluster"
+      },
+      {
+        "visual_id": "8c6df6fe94c830a601d4",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "8d41aefe3232c000ec70",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "97ad5cef059eb57681ea",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "98458abf161e67943300",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "a47c2ff0d976d7441061",
+        "visual_type": "waterfallChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Waterfall Chart"
+      },
+      {
+        "visual_id": "ad7259a0b02d2c267507",
+        "visual_type": "pivotTable",
+        "category": "TABLE",
+        "fields": [
+          "Market",
+          "Target Spend",
+          "Baseline"
+        ],
+        "display_name": "Pivottable of Market"
+      },
+      {
+        "visual_id": "b13cfb1440aaa58b676e",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "c02e9b5f90a2a9a52869",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "c051248463a0b107a782",
+        "visual_type": "shape",
+        "category": "TEXT",
+        "display_name": "Shape"
+      },
+      {
+        "visual_id": "d207b3023e5a80eb0d55",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "d320389c1d73835fb86b",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "d5adab8a568074401e02",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "d747c3145c332d195982",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "d8551cb67c5bece6b6b9",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "e382fd30a72462c5c841",
+        "visual_type": "cardVisual",
+        "category": "CARD",
+        "display_name": "Cardvisual"
+      },
+      {
+        "visual_id": "ef5e628e7a976fd1ba25",
+        "visual_type": "ChicletSlicer1448559807354",
+        "category": "SLICER",
+        "display_name": "Chicletslicer1448559807354"
+      },
+      {
+        "visual_id": "f7b507df7c001dbccea6",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "fad843c7c7e6487e54d9",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      }
+    ],
+    "charts": [
+      {
+        "visual_id": "a47c2ff0d976d7441061",
+        "visual_type": "waterfallChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Waterfall Chart"
+      }
+    ],
+    "chart_count": 1
+  },
+  {
+    "page_id": "a9d694255bea5db5037d",
+    "display_name": "Data Quality & Reconciliation",
+    "visuals_count": 22,
+    "visual_ids": [
+      "0657069e0017c3b57061",
+      "0e1147e4cae390ad8ece",
+      "206c0fa45865cd07eaeb",
+      "216c5849727da645cfce",
+      "30128965202982594015",
+      "3e8bdf45bcb7dbe40ebb",
+      "3ede1f930d996f8b1d4e",
+      "4d4407fb5fd71bf1cf57",
+      "615fc3f14c25e63070b8",
+      "65c143a505a06acc2a12",
+      "66baa49f8e751000a5e3",
+      "830ed5fe977394d4109a",
+      "9758e9a42d7928094a4a",
+      "9af65e0fad08044b1579",
+      "a3446d5f76b72065a9e5",
+      "ad91e7652ad19d8066aa",
+      "b22b2c4278b3300e7819",
+      "c497a88051b0263eb1d1",
+      "c5f97fb7cc4d3d69b2ca",
+      "d97ca29ded9504d00672",
+      "e3c2410e5470d6992310",
+      "ed537af37224e20d18df"
+    ],
+    "visuals": [
+      {
+        "visual_id": "0657069e0017c3b57061",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "0e1147e4cae390ad8ece",
+        "visual_type": "cardVisual",
+        "category": "CARD",
+        "display_name": "Cardvisual"
+      },
+      {
+        "visual_id": "206c0fa45865cd07eaeb",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "216c5849727da645cfce",
+        "visual_type": "lineChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Line Chart"
+      },
+      {
+        "visual_id": "30128965202982594015",
+        "visual_type": "pivotTable",
+        "category": "TABLE",
+        "fields": [
+          "Cluster",
+          "tag_market",
+          "legacy_system"
+        ],
+        "display_name": "Pivottable of Cluster"
+      },
+      {
+        "visual_id": "3e8bdf45bcb7dbe40ebb",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "3ede1f930d996f8b1d4e",
+        "visual_type": "pivotTable",
+        "category": "TABLE",
+        "fields": [
+          "Market",
+          "Legacy",
+          "Sum of COS"
+        ],
+        "display_name": "Pivottable of Market"
+      },
+      {
+        "visual_id": "4d4407fb5fd71bf1cf57",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "615fc3f14c25e63070b8",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "65c143a505a06acc2a12",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "66baa49f8e751000a5e3",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "830ed5fe977394d4109a",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "9758e9a42d7928094a4a",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "9af65e0fad08044b1579",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "a3446d5f76b72065a9e5",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "ad91e7652ad19d8066aa",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "b22b2c4278b3300e7819",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "c497a88051b0263eb1d1",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "c5f97fb7cc4d3d69b2ca",
+        "visual_type": "actionButton",
+        "category": "BUTTON",
+        "display_name": "Actionbutton"
+      },
+      {
+        "visual_id": "d97ca29ded9504d00672",
+        "visual_type": "slicer",
+        "category": "SLICER",
+        "display_name": "Slicer"
+      },
+      {
+        "visual_id": "e3c2410e5470d6992310",
+        "visual_type": "textbox",
+        "category": "TEXT",
+        "display_name": "Textbox"
+      },
+      {
+        "visual_id": "ed537af37224e20d18df",
+        "visual_type": "cardVisual",
+        "category": "CARD",
+        "display_name": "Cardvisual"
+      }
+    ],
+    "charts": [
+      {
+        "visual_id": "216c5849727da645cfce",
+        "visual_type": "lineChart",
+        "category": "CHART",
+        "fields": [],
+        "display_name": "Line Chart"
+      }
+    ],
+    "chart_count": 1
+  }
+]

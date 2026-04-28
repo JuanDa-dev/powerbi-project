@@ -8,11 +8,10 @@ powerbi-project/
 │   ├── main.py                    # Master orchestrator
 │   ├── analyzers/                 # Table/measure/relationship analysis
 │   ├── parsers/                   # TMDL, JSON, model parsing
-│   ├── visualizations/            # PNG/HTML visualizations
-│   ├── report/                    # Documentation generation
+│   ├── visualizations/            # PNG/HTML visualizations generator
+│   ├── power-bi-project/          # Documentation generation
 │   └── utils/                     # Helper functions
 │
-├── tests/                         # Unit tests
 │
 ├── scripts/                       # 🆕 Utility scripts
 │   ├── ollama_client.py          # Ollama HTTP client
@@ -41,7 +40,6 @@ powerbi-project/
 │       └── datatype_distribution.png
 │
 └── output_ai/                    # 🆕 AI-enriched outputs
-    ├── tables_enriched.json
     └── AI_DOCUMENTATION.md
 ```
 

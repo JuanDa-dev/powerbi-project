@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Parser for Power BI report pages and visualizations.
 Outputs: pages.json
@@ -10,13 +9,45 @@ from typing import Dict, List, Any
 
 
 class PageParser:
-    def __init__(self, pbip_root: str):
+    def __init__(self, pbip_root: str, project_name: str = None):
         self.pbip_root = Path(pbip_root)
-        self.report_dir = self.pbip_root / "OnlineBaseline.Report" / "definition"
+        self.project_name = project_name  # e.g., "AmericasConsolidatedBalanceSheet" or "OnlineBaseline"
+        # Auto-detect the .Report folder (flexible for any project name)
+        self.report_dir = self._find_report_dir()
         self.pages = []
+    
+    def _find_report_dir(self) -> Path:
+        """Auto-detect the Report directory for the specific project"""
+        # First, check if pbip_root itself is a .Report folder
+        if self.pbip_root.name.endswith(".Report"):
+            return self.pbip_root / "definition"
+        
+        # If pbip_root is a parent, look for matching .Report folder
+        if self.project_name:
+            # Look for .Report folder that matches the project name
+            matching_report = self.pbip_root / f"{self.project_name}.Report"
+            if matching_report.is_dir():
+                return matching_report / "definition"
+        
+        # Fallback: search all .Report folders (but now with proper matching attempt first)
+        for item in self.pbip_root.iterdir():
+            if item.is_dir() and item.name.endswith(".Report"):
+                # If project_name is provided, prioritize exact matches
+                if self.project_name:
+                    if item.name == f"{self.project_name}.Report":
+                        return item / "definition"
+                else:
+                    # No project name provided, return first .Report found
+                    return item / "definition"
+        
+        # Fallback: return default path but it won't exist
+        return self.pbip_root / "Report" / "definition"
         
     def parse(self) -> List[Dict[str, Any]]:
         """Parse all report pages"""
+        if not self.report_dir.exists():
+            return []
+        
         pages_dir = self.report_dir / "pages"
         
         if not pages_dir.exists():
@@ -24,6 +55,9 @@ class PageParser:
         
         # Read pages metadata
         page_order = self._get_page_order(pages_dir)
+        
+        if not page_order:
+            return []
         
         # Parse each page
         for page_id in page_order:
@@ -35,21 +69,30 @@ class PageParser:
     
     def _get_page_order(self, pages_dir: Path) -> List[str]:
         """Get page order from pages.json"""
-        pages_metadata_file = pages_dir / "pages.json"
         page_order = []
+        pages_metadata_file = pages_dir / "pages.json"
         
         if pages_metadata_file.exists():
             try:
                 metadata = json.loads(pages_metadata_file.read_text(encoding='utf-8'))
-                page_order = metadata.get('pageOrder', [])
-            except (json.JSONDecodeError, KeyError):
+                
+                # Try to get pageOrder from metadata
+                if isinstance(metadata, dict) and 'pageOrder' in metadata:
+                    page_order = metadata.get('pageOrder', [])
+                # If metadata is a list, use it directly
+                elif isinstance(metadata, list):
+                    page_order = [item.get('id') or item.get('name') for item in metadata if isinstance(item, dict)]
+            except (json.JSONDecodeError, KeyError, TypeError):
                 pass
         
-        # Fallback: scan directories
+        # Fallback: scan directories for page folders (exclude pages.json)
         if not page_order:
-            page_order = [d.name for d in pages_dir.iterdir() if d.is_dir() and d.name != 'pages']
+            page_order = [
+                d.name for d in pages_dir.iterdir() 
+                if d.is_dir() and d.name not in ['pages', 'bookmarks']
+            ]
         
-        return page_order
+        return sorted(page_order)  # Sort for consistency
     
     def _parse_page(self, pages_dir: Path, page_id: str) -> Dict[str, Any]:
         """Parse a single page"""
@@ -59,13 +102,16 @@ class PageParser:
             return None
         
         # Get page metadata
-        page_file = page_dir / "page.json"
         display_name = page_id
+        page_metadata = {}
         
+        # Try to read page.json for display name
+        page_file = page_dir / "page.json"
         if page_file.exists():
             try:
                 page_data = json.loads(page_file.read_text(encoding='utf-8'))
                 display_name = page_data.get('displayName', page_id)
+                page_metadata = page_data
             except (json.JSONDecodeError, KeyError):
                 pass
         
@@ -78,7 +124,7 @@ class PageParser:
         
         if visuals_dir.exists():
             for visual_dir in visuals_dir.iterdir():
-                if visual_dir.is_dir():
+                if visual_dir.is_dir() and visual_dir.name != "visuals":
                     visuals_count += 1
                     visual_ids.append(visual_dir.name)
                     
@@ -241,9 +287,15 @@ class PageParser:
         return base_name
 
 
-def parse_pages(pbip_root: str, output_file: str = None) -> List[Dict[str, Any]]:
+def parse_pages(pbip_root: str, output_file: str = None, project_name: str = None) -> List[Dict[str, Any]]:
     """Main function to parse pages"""
-    parser = PageParser(pbip_root)
+    parser = PageParser(pbip_root, project_name)
+    
+    # Debug: show report directory detection
+    if not parser.report_dir.exists():
+        print(f"  [WARN] Report directory not found: {parser.report_dir}")
+        return []
+    
     pages = parser.parse()
     
     if output_file:

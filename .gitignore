@@ -34,8 +34,7 @@ wheels/
 *~
 
 # Generated outputs (from main.py - recreated on each run)
-powerbi-project/data/
-powerbi-project/reports/
+powerbi-project/
 
 # Temporary files
 *.tmp

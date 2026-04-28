@@ -2,10 +2,11 @@
 
 > **Modular semantic model analysis for Power BI projects (.pbip)**
 
-Extract and classify Power BI tables, relationships, measures, and pages into structured JSON outputs with comprehensive Markdown documentation.
+Extract and classify Power BI tables, relationships, measures, and pages into structured JSON outputs with **comprehensive Markdown + PDF documentation**.
 
 ![Python Version](https://img.shields.io/badge/python-3.6%2B-blue)
-![Dependencies](https://img.shields.io/badge/dependencies-none%20required-brightgreen)
+![PDF Export](https://img.shields.io/badge/PDF%20Export-✨%20NEW-green)
+![Dependencies](https://img.shields.io/badge/optional%20deps-visualization%2C%20pdf-blue)
 
 ---
 
@@ -17,7 +18,11 @@ Extract and classify Power BI tables, relationships, measures, and pages into st
 - **Report Pages**: Inventory of report pages and visualizations
 - **Data Sources**: Identifies semantic model data sources
 - **Modular Architecture**: 6 independent parser modules with JSON data contracts
-- **Zero External Dependencies**: Pure Python standard library implementation
+- **📝 Dual Documentation**: 
+  - `TECHNICAL_DOCUMENTATION.pdf` - Concise executive summary
+  - `powerbi_analysis_*.pdf` - Comprehensive analysis with charts
+- **📊 Advanced Visualizations**: Relationship graphs, complexity heatmaps, and DAG diagrams
+- **Zero Core Dependencies**: Pure Python for core analysis
 
 ---
 
@@ -30,8 +35,14 @@ Extract and classify Power BI tables, relationships, measures, and pages into st
 git clone <repository-url>
 cd powerbi-project
 
-# No dependencies needed - uses Python standard library only
+# Install dependencies (including PDF export)
+pip install -r requirements.txt
+
+# Or minimal install (no PDF export)
+pip install matplotlib seaborn networkx plotly pillow pydot
 ```
+
+> **Note:** PDF export requires WeasyPrint. See [PDF_EXPORT_SETUP.md](PDF_EXPORT_SETUP.md) for system dependencies.
 
 ### Usage
 
@@ -40,14 +51,26 @@ cd powerbi-project
 python main.py ../RecursosFuente/OnlineBaseline.pbip
 
 # Output generates in: powerbi-project/
-#   - tables.json
-#   - relationships.json
-#   - measures.json
-#   - pages.json
-#   - datasources.json
-#   - analysis.json
-#   - TECHNICAL_DOCUMENTATION.md
-#   - powerbi_analysis_TIMESTAMP.md
+#   📊 JSON DATA
+#   ├── tables.json
+#   ├── relationships.json
+#   ├── measures.json
+#   ├── pages.json
+#   ├── datasources.json
+#   └── analysis.json
+#
+#   📝 MARKDOWN + PDF DOCUMENTATION  ✨ NEW
+#   ├── TECHNICAL_DOCUMENTATION.md
+#   ├── TECHNICAL_DOCUMENTATION.pdf ✨
+#   ├── powerbi_analysis_TIMESTAMP.md
+#   └── powerbi_analysis_TIMESTAMP.pdf ✨
+#
+#   📈 VISUALIZATIONS
+#   ├── relationship_graph.png + .html
+#   ├── measure_dependency.png
+#   ├── complexity_heatmap.png
+#   ├── schema_type_donut.png
+#   └── datatype_distribution.png
 ```
 
 ### Platform-Specific Wrappers
@@ -64,38 +87,89 @@ run.bat ../RecursosFuente/OnlineBaseline.pbip
 
 ---
 
-## 📊 Outputs
+## 📊 Outputs Explained
 
-### Organized Output Structure
+### Two-Tier Documentation System ✨ NEW
 
-All outputs are organized into two subdirectories for clarity:
+#### **1. TECHNICAL_DOCUMENTATION.pdf**
+🎯 **Purpose:** Executive summary for quick reference  
+📄 **Length:** 5-15 pages | Concise, copy-paste ready
+
+**Contains:**
+- General Description
+- Dataset: Endpoint  
+- Table Mapping (Semantic Model)
+- Tables and Composition
+- Relationships (table format)
+- Pages
+
+**Perfect for:**
+- Stakeholder presentations
+- Quick model reviews
+- Non-technical audiences
+- Email sharing
+
+---
+
+#### **2. powerbi_analysis_TIMESTAMP.pdf**
+📊 **Purpose:** Comprehensive technical analysis  
+📄 **Length:** 20-50 pages | Detailed with 5 embedded charts
+
+**Contains:**
+- Executive Overview with stats
+- Model Complexity Analysis (with visualizations)
+- Detailed Table Classifications
+- Complete Relationships Analysis
+- Measures Overview with DAX snippets
+- Column-level inventory
+- Data Quality Assessment
+
+**Perfect for:**
+- Data architects
+- Deep technical reviews
+- Model documentation
+- Archival purposes
+
+---
+
+### File Structure
 
 ```
 powerbi-project/
+│
 ├── data/                          ← 📊 JSON data files (6 files)
-│   ├── tables.json               # Table metadata
-│   ├── relationships.json        # Model relationships
-│   ├── measures.json             # Measures with complexity scores
+│   ├── tables.json               # Table metadata, columns, datatypes
+│   ├── relationships.json        # Model relationships with cardinality
+│   ├── measures.json             # DAX measures with complexity scores
 │   ├── pages.json                # Report pages and visualizations
 │   ├── datasources.json          # Data source definitions
 │   └── analysis.json             # Table classifications + schema analysis
 │
-└── reports/                       ← 📝 Markdown documentation (2 files)
-    ├── TECHNICAL_DOCUMENTATION.md    # Executive summary
-    └── powerbi_analysis_TIMESTAMP.md # Extended analysis
+├── reports/                       ← 📝 Markdown + PDF Documentation ✨
+│   ├── TECHNICAL_DOCUMENTATION.md
+│   ├── TECHNICAL_DOCUMENTATION.pdf ✨ NEW
+│   ├── powerbi_analysis_20260427_120000.md
+│   └── powerbi_analysis_20260427_120000.pdf ✨ NEW
+│
+└── graphs/                        ← 📈 Visualizations (5 PNG + 1 HTML)
+    ├── relationship_graph.png
+    ├── relationship_graph.html
+    ├── measure_dependency.png
+    ├── complexity_heatmap.png
+    ├── schema_type_donut.png
+    └── datatype_distribution.png
 ```
 
-### JSON Data Files (in `data/`)
-- **tables.json**: Table metadata (columns, datatypes, measures list)
-- **relationships.json**: Model relationships with cardinality
-- **measures.json**: Measures with DAX complexity scores (1-10)
-- **pages.json**: Report pages and visualization inventory
-- **datasources.json**: Data source definitions
-- **analysis.json**: Table classifications + schema analysis
+### PDF Documentation ✨ NEW
 
-### Markdown Documentation (in `reports/`)
-- **TECHNICAL_DOCUMENTATION.md**: Executive summary with model overview
-- **powerbi_analysis_TIMESTAMP.md**: Extended analysis with detailed classifications
+**Two-tier documentation for different audiences:**
+
+| Document | Audience | Length | Includes | Format |
+|----------|----------|--------|----------|--------|
+| **TECHNICAL_DOCUMENTATION.pdf** | Executives, Stakeholders | 5-15 pages | General Description, Table Mapping, Relationships, Pages | MD + PDF |
+| **powerbi_analysis_*.pdf** | Architects, Data Analysts | 20-50 pages | All above + 5 charts, detailed measures, columns inventory, quality metrics | MD + PDF |
+
+All PDFs include professional styling and are ready for sharing or printing.
 
 ---
 
@@ -110,9 +184,31 @@ parsers/
 ├── parse_datasources.py    # Extract data source definitions
 └── parse_analysis.py       # Table classification + schema analysis
 
-main.py                      # Orchestrator: runs all parsers + generates docs
+main.py                      # Orchestrator: runs all parsers + generates docs + PDF export
 run.bat / run.sh             # Platform-specific convenience wrappers
 ```
+
+---
+
+## 📦 Installation & Dependencies
+
+### Core Analysis (Always included)
+- Python 3.6+
+- No external dependencies - uses Python standard library only
+
+### PDF Export ✨ NEW (Optional but recommended)
+```bash
+# Install full dependencies
+pip install -r requirements.txt
+
+# Or just PDF dependencies
+pip install weasyprint markdown2
+```
+
+> See [PDF_EXPORT_SETUP.md](PDF_EXPORT_SETUP.md) for system-specific requirements.
+
+### Visualizations (Optional)
+- matplotlib, seaborn, networkx, plotly (included in requirements.txt)
 
 ---
 
