@@ -61,9 +61,7 @@ python main.py ../RecursosFuente/OnlineBaseline.pbip
 #
 #   📝 MARKDOWN + PDF DOCUMENTATION  ✨ NEW
 #   ├── TECHNICAL_DOCUMENTATION.md
-#   ├── TECHNICAL_DOCUMENTATION.pdf ✨
 #   ├── powerbi_analysis_TIMESTAMP.md
-#   └── powerbi_analysis_TIMESTAMP.pdf ✨
 #
 #   📈 VISUALIZATIONS
 #   ├── relationship_graph.png + .html
@@ -147,9 +145,7 @@ powerbi-project/
 │
 ├── reports/                       ← 📝 Markdown + PDF Documentation ✨
 │   ├── TECHNICAL_DOCUMENTATION.md
-│   ├── TECHNICAL_DOCUMENTATION.pdf ✨ NEW
 │   ├── powerbi_analysis_20260427_120000.md
-│   └── powerbi_analysis_20260427_120000.pdf ✨ NEW
 │
 └── graphs/                        ← 📈 Visualizations (5 PNG + 1 HTML)
     ├── relationship_graph.png
@@ -159,17 +155,6 @@ powerbi-project/
     ├── schema_type_donut.png
     └── datatype_distribution.png
 ```
-
-### PDF Documentation ✨ NEW
-
-**Two-tier documentation for different audiences:**
-
-| Document | Audience | Length | Includes | Format |
-|----------|----------|--------|----------|--------|
-| **TECHNICAL_DOCUMENTATION.pdf** | Executives, Stakeholders | 5-15 pages | General Description, Table Mapping, Relationships, Pages | MD + PDF |
-| **powerbi_analysis_*.pdf** | Architects, Data Analysts | 20-50 pages | All above + 5 charts, detailed measures, columns inventory, quality metrics | MD + PDF |
-
-All PDFs include professional styling and are ready for sharing or printing.
 
 ---
 

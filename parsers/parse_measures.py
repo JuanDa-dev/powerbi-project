@@ -166,7 +166,6 @@ def parse_measures(tmdl_dir: str, output_file: str = None) -> List[Dict[str, Any
     
     return measures
 
-
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:

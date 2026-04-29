@@ -4,24 +4,24 @@
 
 ```
 powerbi-project/
-├── pbi-mcp-enhanced/              # Core analysis engine
 │   ├── main.py                    # Master orchestrator
 │   ├── analyzers/                 # Table/measure/relationship analysis
 │   ├── parsers/                   # TMDL, JSON, model parsing
-│   ├── visualizations/            # PNG/HTML visualizations generator
+│   ├── visualizers/               # PNG/HTML visualizations generator
 │   ├── power-bi-project/          # Documentation generation
-│   └── utils/                     # Helper functions
+    ├── scripts/                   # several scripts
 │
 │
 ├── scripts/                       # 🆕 Utility scripts
-│   ├── ollama_client.py          # Ollama HTTP client
-│   ├── ollama_generator.py       # AI documentation generator
-│   ├── check_types.py            # Verify datatype extraction
-│   ├── check_classification.py   # Verify AI classifications
-│   ├── inspect_tmdl.py           # Inspect TMDL structure
-│   ├── README.md                 # Scripts documentation
-│   ├── QUICKSTART.md             # Quick start guide
-│   └── __init__.py               # Package marker
+│   ├── ollama_client.py           # Ollama HTTP client
+│   ├── ollama_generator.py        # AI documentation generator
+│   ├── check_types.py             # Verify datatype extraction
+│   ├── check_classification.py    # Verify AI classifications
+    ├── documentation_generator.py # Generates separately the documentation
+│   ├── inspect_tmdl.py            # Inspect TMDL structure
+│   ├── README.md                  # Scripts documentation
+│   ├── QUICKSTART.md              # Quick start guide
+│   └── __init__.py                # Package marker
 │
 ├── powerbi-project/              # Pipeline outputs
 │   ├── data/                     # JSON analysis
