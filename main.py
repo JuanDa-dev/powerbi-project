@@ -20,6 +20,7 @@ from parsers.parse_measures import parse_measures
 from parsers.parse_pages import parse_pages
 from parsers.parse_datasources import parse_datasources
 from parsers.parse_analysis import parse_analysis
+from parsers.parse_column_usage import parse_column_usage
 
 # Import documentation generator (separated module)
 from scripts.documentation_generator import DocumentationGenerator
@@ -216,17 +217,26 @@ def main() -> None:
         # -------------------------
         print("[STEP 1/3] Running parsers...")
 
-        print("  • Parsing tables...", end=" ", flush=True)
-        tables = parse_tables(str(tmdl_dir), str(data_dir / "tables.json"))
-        print(f"[OK] {len(tables)} tables")
-
+        # Parse relationships and measures first (needed for unused table detection)
         print("  • Parsing relationships...", end=" ", flush=True)
         relationships = parse_relationships(str(tmdl_dir), str(data_dir / "relationships.json"))
         print(f"[OK] {len(relationships)} relationships")
 
         print("  • Parsing measures...", end=" ", flush=True)
-        measures = parse_measures(str(tmdl_dir), str(data_dir / "measures.json"))
+        measures_result = parse_measures(str(tmdl_dir), str(data_dir / "measures.json"))
+        # parse_measures returns (measures, unused, analysis)
+        measures = measures_result[0] if isinstance(measures_result, tuple) else measures_result
         print(f"[OK] {len(measures)} measures")
+
+        # Parse tables with context of relationships and measures (for unused table detection)
+        print("  • Parsing tables...", end=" ", flush=True)
+        tables = parse_tables(str(tmdl_dir), str(data_dir / "tables.json"), relationships=relationships, measures=measures)
+        print(f"[OK] {len(tables)} tables")
+
+        # Analyze column usage (detect unused columns per table)
+        print("  • Analyzing column usage...", end=" ", flush=True)
+        column_usage = parse_column_usage(tables=tables, relationships=relationships, measures=measures, output_file=str(data_dir / "column_usage.json"))
+        print(f"[OK] {len(column_usage)} tables analyzed")
 
         # Pages parsing root depends on how the project was provided
         # - If given *.SemanticModel, its parent should contain *.Report
@@ -340,22 +350,22 @@ def main() -> None:
     if total_processed > 0:
         print("Generated files per project:")
         print("  [DIR] data/")
-        print("     ├── tables.json")
-        print("     ├── relationships.json")
-        print("     ├── measures.json")
-        print("     ├── pages.json")
-        print("     ├── datasources.json")
-        print("     └── analysis.json\n")
+        print("     |-- tables.json")
+        print("     |-- relationships.json")
+        print("     |-- measures.json")
+        print("     |-- pages.json")
+        print("     |-- datasources.json")
+        print("     `-- analysis.json\n")
         print("  [DIR] reports/")
-        print("     ├── TECHNICAL_DOCUMENTATION.md")
-        print("     └── powerbi_analysis_*.md\n")
+        print("     |-- TECHNICAL_DOCUMENTATION.md")
+        print("     `-- powerbi_analysis_*.md\n")
         if VISUALIZERS_AVAILABLE:
             print("  [DIR] graphs/")
-            print("     ├── relationship_graph.png + .html")
-            print("     ├── measure_dependency.png")
-            print("     ├── complexity_heatmap.png")
-            print("     ├── schema_type_donut.png")
-            print("     └── datatype_distribution.png\n")
+            print("     |-- relationship_graph.png + .html")
+            print("     |-- measure_dependency.png")
+            print("     |-- complexity_heatmap.png")
+            print("     |-- schema_type_donut.png")
+            print("     `-- datatype_distribution.png")
     print("=" * 80)
 
 

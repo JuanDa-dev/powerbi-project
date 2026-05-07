@@ -12,15 +12,15 @@ import urllib.error
 from typing import Optional
 
 OLLAMA_BASE_URL = "http://localhost:11434"
-DEFAULT_MODEL   = "qwen3.5:4b"
-CHUNK_TIMEOUT   = 300  # seconds to wait between chunks (not total response time)
+DEFAULT_MODEL   = "gemma4:e2b"  # Configurable: phi3:3.8b, phi3:14b, qwen2:14b, mistral, etc.
+CHUNK_TIMEOUT   = 200  # seconds to wait between chunks (not total response time)
 
 
 def generate(
     prompt: str,
     system: Optional[str] = None,
     model: str = DEFAULT_MODEL,
-    temperature: float = 0.1,
+    temperature: float = 0.3,
     json_mode: bool = False
 ) -> str:
     """
@@ -54,7 +54,7 @@ def generate(
             "num_ctx":     4096,  # reduced context = faster on CPU
             "num_thread":  max(1, _cpu_thread_count()),
             "num_gpu":     0,     # explicit CPU-only
-            "num_batch":   128,   # conservative batch for low RAM
+            "num_batch":   96,   # conservative batch for low RAM
             "top_p":       0.95,
             "top_k":       40,
         }
