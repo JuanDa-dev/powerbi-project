@@ -28,7 +28,11 @@ powerbi-project/
 │   │   ├── tables.json
 │   │   ├── relationships.json
 │   │   ├── measures.json
-│   │   └── ...
+│   │   ├── analysis.json 
+        ├── column_usage.json
+        ├── pages.json
+        ├── relationships.json
+        └── unused_measures.json
 │   ├── reports/                 # Markdown documentation
 │   │   ├── TECHNICAL_DOCUMENTATION.md
 │   │   └── powerbi_analysis_*.md

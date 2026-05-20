@@ -35,6 +35,7 @@ wheels/
 
 # Generated outputs (from main.py - recreated on each run)
 powerbi-project/
+ai_analysis_output/
 
 # Temporary files
 *.tmp

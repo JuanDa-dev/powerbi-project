@@ -34,6 +34,19 @@ TABLE_TYPES = {
     "UNKNOWN"
 }
 
+# Foreign key detection patterns
+FK_PATTERNS = [
+    r".*[Ii]d$",              # EndsWith Id, id
+    r".*[Ii]d[A-Z]",         # Contains Id followed by capital letter
+    r".*_[Ii]d$",             # EndsWith _Id, _id
+    r"^[Kk]ey_.*",           # StartsWith Key_, key_
+    r".*[Kk]ey[A-Z]",        # Contains Key followed by capital
+    r".*[Cc]ode$",            # EndsWith Code, code (common for dimension codes)
+]
+
+# Additive aggregation functions (for summarizeBy)
+ADDITIVE_AGGREGATIONS = {"Sum", "sum", "SUM", "Count", "count", "COUNT"}
+
 
 class AnalysisParser:
     def __init__(self, tmdl_dir: str):
@@ -92,6 +105,10 @@ class AnalysisParser:
     def _extract_columns(self, content: str) -> List[Dict[str, Any]]:
         """
         Extract columns and basic metadata from TMDL content.
+        Detects:
+        - Calculated columns (have inline expressions)
+        - Concatenated columns (use CONCATENATE, CONCAT, or & operator)
+        - Text key columns (concatenated string columns used in relationships)
         """
         columns = []
 
@@ -108,11 +125,29 @@ class AnalysisParser:
             summarize_by_match = re.search(r"summarizeBy:\s*(\w+)", col_block)
             summarize_by = summarize_by_match.group(1) if summarize_by_match else None
 
+            # Detect calculated columns
+            # Calculated columns have an inline expression (= operator or expression: line)
+            is_calculated = bool(
+                re.search(r"^\s*column\s+['\"]?[^'\"]+['\"]?\s*=", content[match.start():match.end()], re.MULTILINE)
+                or re.search(r"expression\s*=", col_block, re.IGNORECASE)
+            )
+
+            # Detect concatenated columns
+            # Look for CONCATENATE, CONCAT functions or & operator in the column block
+            is_concatenated = bool(
+                re.search(r"CONCATENATE\s*\(", col_block, re.IGNORECASE)
+                or re.search(r"CONCAT\s*\(", col_block, re.IGNORECASE)
+                or re.search(r"[^=!<>]\s*&\s*[^=&]", col_block)  # & operator (not ==, !=, <=, >=, &&)
+            )
+
             columns.append({
                 "name": col_name,
                 "dataType": datatype,
                 "isHidden": is_hidden,
-                "summarizeBy": summarize_by
+                "summarizeBy": summarize_by,
+                "is_calculated": is_calculated,
+                "is_concatenated": is_concatenated,
+                "is_text_concatenated_key": is_concatenated and datatype in STRING_TYPES
             })
 
         return columns
@@ -228,6 +263,11 @@ class AnalysisParser:
             date_count = sum(1 for c in columns if c["dataType"] in DATE_TYPES)
             boolean_count = sum(1 for c in columns if c["dataType"] in BOOLEAN_TYPES)
 
+            # Count calculated and concatenated columns
+            calculated_count = sum(1 for c in columns if c.get("is_calculated", False))
+            concatenated_count = sum(1 for c in columns if c.get("is_concatenated", False))
+            text_concat_key_count = sum(1 for c in columns if c.get("is_text_concatenated_key", False))
+
             rel_from = [r for r in self.relationships if r["from_table"] == table_name]
             rel_to = [r for r in self.relationships if r["to_table"] == table_name]
 
@@ -243,6 +283,9 @@ class AnalysisParser:
                 "string_columns": string_count,
                 "date_columns": date_count,
                 "boolean_columns": boolean_count,
+                "calculated_columns": calculated_count,
+                "concatenated_columns": concatenated_count,
+                "text_concatenated_keys": text_concat_key_count,
                 "relationships_from": outgoing_count,
                 "relationships_to": incoming_count,
                 "total_relationships": outgoing_count + incoming_count,
@@ -251,7 +294,8 @@ class AnalysisParser:
                 "is_isolated": outgoing_count + incoming_count == 0,
                 "numeric_ratio": round(numeric_count / col_count, 4) if col_count else 0,
                 "string_ratio": round(string_count / col_count, 4) if col_count else 0,
-                "date_ratio": round(date_count / col_count, 4) if col_count else 0
+                "date_ratio": round(date_count / col_count, 4) if col_count else 0,
+                "calculated_ratio": round(calculated_count / col_count, 4) if col_count else 0
             }
 
         return profiles
@@ -282,6 +326,7 @@ class AnalysisParser:
         """
         profile = self.table_profiles[table_name]
         tokens = profile["name_tokens"]
+        columns = self.tables[table_name]["columns"]
 
         scores = {
             "FACT": 0,
@@ -373,6 +418,28 @@ class AnalysisParser:
             scores["BRIDGE"] += 20
             evidence["BRIDGE"].append("Acts as connector between multiple related tables")
 
+        # NEW: Penalize FACT tables with too many calculated columns
+        if profile["calculated_columns"] >= 3 and profile["relationships_from"] >= 2:
+            scores["FACT"] -= 15
+            evidence["FACT"].append(f"Contains {profile['calculated_columns']} calculated columns (reduces fact table performance)")
+
+        # NEW: Penalize concatenated string keys (weak key design)
+        if profile["text_concatenated_keys"] > 0:
+            scores["FACT"] -= 10
+            scores["DIMENSION"] -= 8
+            evidence["DIMENSION"].append(f"Uses {profile['text_concatenated_keys']} concatenated string key(s) instead of surrogate keys")
+
+        # NEW: Bonus for clean design (no calculated/concatenated columns in facts)
+        if profile["relationships_from"] >= 2 and profile["calculated_columns"] == 0 and profile["text_concatenated_keys"] == 0:
+            scores["FACT"] += 10
+            evidence["FACT"].append("Clean fact table structure with no concatenated keys")
+
+        # NEW: Robust fact table detection via relationship cardinality and structure
+        fact_score, fact_evidence = self._score_as_fact(table_name, profile, columns)
+        if fact_score > 0:
+            scores["FACT"] += fact_score
+            evidence["FACT"].extend(fact_evidence)
+
         # ---------------------------------------------------------------------
         # Default fallback
         # ---------------------------------------------------------------------
@@ -395,6 +462,78 @@ class AnalysisParser:
             "scores": scores,
             "metadata": profile
         }
+
+    def _score_as_fact(self, table_name: str, profile: Dict[str, Any], columns: List[Dict[str, Any]]) -> Tuple[int, List[str]]:
+        """
+        Robust fact table detection using strict cardinality, isolation, and measure column signals.
+        
+        Core Principle: A fact table must satisfy at least ONE strong pillar:
+        
+        Pillar 1 (Strongest): Cardinality Pattern
+        - 4+ active outgoing relationships
+        - ALL relationships from "many" side (never "one")
+        - Indicates pure transaction-level table
+        
+        Pillar 2 (Very Strong): Isolation + High Fanout
+        - No incoming relationships (relationships_to = 0)
+        - 3+ outgoing relationships (relationships_from >= 3)
+        - Table only references, never referenced
+        
+        Pillar 3 (Strong): Numeric Measure Columns
+        - 3+ numeric columns with summarizeBy != none
+        - These are business metrics, not keys
+        - Excludes columns with summarizeBy = none (FK columns)
+        """
+        score = 0
+        evidence = []
+
+        # =====================================================================
+        # PILLAR 1: Strict Cardinality Pattern (Score +50)
+        # =====================================================================
+        outgoing_rels = [r for r in self.relationships if r["from_table"] == table_name]
+        active_outgoing = [r for r in outgoing_rels if r.get("is_active", True)]
+        
+        if len(active_outgoing) >= 4:
+            # All active outgoing relationships must be from "many" side
+            all_many = all(r.get("from_cardinality", "many") == "many" for r in active_outgoing)
+            if all_many:
+                score += 50
+                evidence.append(
+                    f"STRONG: All {len(active_outgoing)} active outgoing relationships from 'many' side "
+                    f"(4+ cardinality pattern - transaction-level table)"
+                )
+
+        # =====================================================================
+        # PILLAR 2: Isolation + High Fanout (Score +45)
+        # =====================================================================
+        # Very strong: table is never filtered (relationships_to = 0) but filters many others
+        if profile["relationships_to"] == 0 and profile["relationships_from"] >= 3:
+            score += 45
+            evidence.append(
+                f"VERY STRONG: No incoming relationships + {profile['relationships_from']} outgoing "
+                f"(pure fact source - never filtered)"
+            )
+
+        # =====================================================================
+        # PILLAR 3: Numeric Measure Columns (Score +40)
+        # =====================================================================
+        # Measure columns: numeric + summarizeBy != none (Sum, Count, Average, etc)
+        # Key columns: numeric + summarizeBy = none
+        measure_cols = [
+            c for c in columns
+            if c["dataType"] in NUMERIC_TYPES
+            and c.get("summarizeBy") is not None
+            and str(c.get("summarizeBy", "")).lower() != "none"
+        ]
+        
+        if len(measure_cols) >= 3:
+            score += 40
+            evidence.append(
+                f"STRONG: {len(measure_cols)} numeric columns with additive summarizeBy "
+                f"(business metrics, not keys)"
+            )
+
+        return score, evidence
 
     @staticmethod
     def _calculate_confidence(best_score: int, total_score: int) -> float:
@@ -437,8 +576,15 @@ class AnalysisParser:
             for c in classifications
         }
 
+        # Calculate average confidence for confidence bonus
+        avg_confidence = round(
+            sum(c["confidence"] for c in classifications) / len(classifications), 3
+        ) if classifications else 0.5
+
         schema_type = self._detect_schema_type(classification_map, components)
-        score_data = self._calculate_compliance_score(classification_map, components, isolated_tables)
+        score_data = self._calculate_compliance_score(
+            classification_map, components, isolated_tables, avg_confidence, schema_type
+        )
 
         return {
             "total_tables": len(self.tables),
@@ -448,6 +594,7 @@ class AnalysisParser:
             "schema_type": schema_type,
             "compliance_score": score_data["score"],
             "score_breakdown": score_data["breakdown"],
+            "average_classification_confidence": avg_confidence,
             "components": len(components),
             "component_details": [sorted(list(c)) for c in components],
             "isolated_tables": sorted(isolated_tables),
@@ -501,7 +648,7 @@ class AnalysisParser:
         Detect model schema type dynamically.
 
         Heuristics:
-        - DISCONNECTED: no relationships or mostly isolated.
+        - DISCONNECTED: no relationships or mostly isolated (excluding intentional tables).
         - FLAT: one or very few tables with no meaningful relationships.
         - STAR: one fact table connected mainly to dimensions.
         - GALAXY: multiple fact tables sharing dimensions.
@@ -517,9 +664,20 @@ class AnalysisParser:
         if total_relationships == 0:
             return "FLAT" if total_tables <= 2 else "DISCONNECTED"
 
-        isolated_count = sum(1 for c in components if len(c) == 1)
+        # Get isolated tables (components of size 1)
+        isolated_tables = [list(comp)[0] for comp in components if len(comp) == 1]
 
-        if isolated_count / total_tables >= 0.5:
+        # Filter out intentional isolated tables (same logic as compliance scoring)
+        calculation_tables = [t for t, c in classification_map.items() if c == "CALCULATION"]
+        parameter_tables = [t for t, c in classification_map.items() if c == "PARAMETER"]
+        
+        intentional_isolated = set(calculation_tables + parameter_tables)
+        intentional_isolated.update(t for t in isolated_tables if t.startswith(("_", "param", "Param")))
+        
+        real_isolated_tables = [t for t in isolated_tables if t not in intentional_isolated]
+
+        # Check if remaining isolated tables are too many
+        if real_isolated_tables and len(real_isolated_tables) / total_tables >= 0.5:
             return "DISCONNECTED"
 
         fact_tables = [t for t, c in classification_map.items() if c == "FACT"]
@@ -566,10 +724,16 @@ class AnalysisParser:
         self,
         classification_map: Dict[str, str],
         components: List[set],
-        isolated_tables: List[str]
+        isolated_tables: List[str],
+        avg_confidence: float = 0.5,
+        schema_type: str = "UNKNOWN"
     ) -> Dict[str, Any]:
         """
         Calculate a schema compliance score from 0 to 100.
+        
+        Parameters:
+        - avg_confidence: Average classification confidence (0.3-0.98)
+        - schema_type: Detected schema type (affects score ceiling)
         """
         score = 100
         issues = []
@@ -582,6 +746,15 @@ class AnalysisParser:
         fact_tables = [t for t, c in classification_map.items() if c == "FACT"]
         dimension_tables = [t for t, c in classification_map.items() if c == "DIMENSION"]
         bridge_tables = [t for t, c in classification_map.items() if c == "BRIDGE"]
+        calculation_tables = [t for t, c in classification_map.items() if c == "CALCULATION"]
+        parameter_tables = [t for t, c in classification_map.items() if c == "PARAMETER"]
+        
+        # Filter out intentional isolated tables (parameters, calculations)
+        intentional_isolated = set(calculation_tables + parameter_tables)
+        # Also check by naming convention
+        intentional_isolated.update(t for t in isolated_tables if t.startswith(("_", "param", "Param")))
+        
+        real_isolated_tables = [t for t in isolated_tables if t not in intentional_isolated]
 
         # 1. Basic relationship coverage
         if total_tables > 1 and total_relationships == 0:
@@ -591,13 +764,13 @@ class AnalysisParser:
             recommendations.append("Define relationships between fact and dimension tables where applicable.")
             breakdown["missing_relationships_penalty"] = -penalty
 
-        # 2. Isolated tables
-        if isolated_tables:
-            isolated_ratio = len(isolated_tables) / total_tables
+        # 2. Isolated tables (excluding intentional ones)
+        if real_isolated_tables:
+            isolated_ratio = len(real_isolated_tables) / total_tables
             penalty = min(25, round(isolated_ratio * 30))
             score -= penalty
-            issues.append(f"{len(isolated_tables)} isolated table(s) detected.")
-            recommendations.append("Review isolated tables and confirm whether they are intentional parameters/calculation tables.")
+            issues.append(f"{len(real_isolated_tables)} isolated table(s) detected (excluding {len(intentional_isolated)} intentional).")
+            recommendations.append("Review isolated tables and define relationships where appropriate.")
             breakdown["isolated_tables_penalty"] = -penalty
 
         # 3. Fact table presence
@@ -654,7 +827,33 @@ class AnalysisParser:
             recommendations.append("Document inactive relationships and related USERELATIONSHIP measures if used.")
             breakdown["inactive_relationships_penalty"] = -penalty
 
-        # 8. Positive signals
+        # 8. NEW: Penalize concatenated string keys in relationships (weak key columns)
+        text_concat_keys_total = sum(
+            table.get("text_concatenated_keys", 0)
+            for table in self.table_profiles.values()
+        )
+
+        if text_concat_keys_total > 0:
+            penalty = min(12, text_concat_keys_total * 3)
+            score -= penalty
+            issues.append(f"{text_concat_keys_total} concatenated string key column(s) detected.")
+            recommendations.append("Replace concatenated text keys with surrogate keys or proper composite keys. Concatenated keys reduce performance and maintainability.")
+            breakdown["concatenated_text_keys_penalty"] = -penalty
+
+        # 9. NEW: Penalize calculated columns in fact tables (performance issues)
+        calculated_in_facts = 0
+        for fact_table in fact_tables:
+            if fact_table in self.table_profiles:
+                calculated_in_facts += self.table_profiles[fact_table].get("calculated_columns", 0)
+
+        if calculated_in_facts > 0:
+            penalty = min(10, calculated_in_facts * 2)
+            score -= penalty
+            issues.append(f"{calculated_in_facts} calculated column(s) detected in fact table(s).")
+            recommendations.append("Move calculations from fact tables to dimension tables or measures to improve query performance and reduce storage.")
+            breakdown["calculated_columns_in_facts_penalty"] = -penalty
+
+        # 10. Positive signals
         if fact_tables and dimension_tables and total_relationships > 0:
             bonus = 5
             score += bonus
@@ -665,7 +864,27 @@ class AnalysisParser:
             score += bonus
             breakdown["bridge_modeling_bonus"] = bonus
 
-        score = max(0, min(100, round(score)))
+        # Apply confidence bonus (rewards models with clear classifications)
+        confidence_bonus = round((avg_confidence - 0.3) * 10)  # Scale to 0-7 range
+        if confidence_bonus > 0:
+            score += confidence_bonus
+            breakdown["classification_confidence_bonus"] = confidence_bonus
+        
+        # Determine schema-specific score ceiling
+        # Complex schemas (SNOWFLAKE, GALAXY) have inherent structural complexity
+        schema_ceilings = {
+            "STAR": 100,
+            "DIMENSIONAL": 95,
+            "GALAXY": 90,
+            "SNOWFLAKE": 88,
+            "FLAT": 85,
+            "DISCONNECTED": 70,
+            "UNKNOWN": 95
+        }
+        
+        schema_ceiling = schema_ceilings.get(schema_type, 95)
+        score = max(0, min(schema_ceiling, round(score)))
+        breakdown["schema_type_ceiling"] = schema_ceiling
 
         if not issues:
             recommendations.append("Model relationship structure appears consistent with dimensional modeling practices.")
