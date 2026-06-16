@@ -9,6 +9,9 @@ Purpose:
 
 Outputs:
 - tables.json
+
+This parser intentionally avoids unused-table detection. Column usage is
+handled separately by parse_column_usage.py so responsibilities stay isolated.
 """
 
 import json
@@ -22,8 +25,6 @@ class TableParser:
     def __init__(self, tmdl_dir: str):
         self.tmdl_dir = Path(tmdl_dir)
         self.tables: List[Dict[str, Any]] = []
-        self.relationships: List[Dict[str, Any]] = []
-        self.measures: List[Dict[str, Any]] = []
 
     def parse(self, relationships: List[Dict[str, Any]] = None, measures: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """
@@ -45,10 +46,6 @@ class TableParser:
             }
         ]
         """
-        # Store relationships and measures for usage detection
-        self.relationships = relationships or []
-        self.measures = measures or []
-        
         tables_dir = self.tmdl_dir / "tables"
 
         if not tables_dir.exists():
@@ -60,9 +57,6 @@ class TableParser:
 
             if table_data:
                 self.tables.append(table_data)
-
-        # Mark unused tables
-        self._mark_unused_tables()
 
         return self.tables
 
@@ -113,6 +107,8 @@ class TableParser:
             "measure_count": len(measures),
             "is_calculation": table_kind == "CALCULATION",
             "is_parameter": table_kind == "PARAMETER",
+            "has_measures": len(measures) > 0,
+            "has_calculated_columns": calculated_columns > 0,
             "file": str(file_path),
 
             # Extended metadata
@@ -125,8 +121,14 @@ class TableParser:
             "calculated_column_count": calculated_columns,
             "key_like_column_count": key_like_columns,
             "data_type_distribution": dict(column_type_distribution),
+            "composition": {
+                "columns": len(columns),
+                "measures": len(measures),
+                "calculated_columns": calculated_columns,
+                "hidden_columns": hidden_columns,
+                "key_like_columns": key_like_columns,
+            },
             "annotations": annotations,
-            "is_unused": False,  # Will be updated by _mark_unused_tables()
             "source": {
                 "file": self._relative_path(file_path),
                 "raw_size_chars": len(content)
@@ -636,76 +638,6 @@ class TableParser:
             return "MODEL_TABLE"
 
         return "UNKNOWN"
-
-    def _mark_unused_tables(self) -> None:
-        """
-        Mark tables that are not used in the model.
-        
-        A table is considered UNUSED if:
-        - It has no incoming or outgoing relationships
-        - It has no measures
-        - It's not hidden (hidden tables might be for internal use)
-        - It's not a CALCULATION or PARAMETER table
-        """
-        table_names = {table["name"] for table in self.tables}
-        
-        for table in self.tables:
-            table["is_unused"] = self._is_table_unused(table, table_names)
-
-    def _is_table_unused(self, table: Dict[str, Any], all_table_names: set) -> bool:
-        """
-        Determine if a table is unused.
-        
-        Returns True if:
-        - Has no measures
-        - Has no relationships (incoming or outgoing)
-        - Is not a CALCULATION, PARAMETER, or CALCULATED_TABLE table
-        - Is not hidden
-        """
-        table_name = table["name"]
-        table_kind = table.get("table_kind", "UNKNOWN")
-        is_hidden = table.get("is_hidden", False)
-        measure_count = table.get("measure_count", 0)
-        
-        # CALCULATION, PARAMETER, and CALCULATED_TABLE tables are typically intentional, not unused
-        if table_kind in {"CALCULATION", "PARAMETER", "CALCULATED_TABLE"}:
-            return False
-        
-        # Hidden tables might be for internal use, not unused
-        if is_hidden:
-            return False
-        
-        # If table has measures, it's being used
-        if measure_count > 0:
-            return False
-        
-        # Check if table has any relationships
-        has_relationships = self._table_has_relationships(table_name)
-        if has_relationships:
-            return False
-        
-        # If we get here, it's likely unused
-        return True
-
-    def _table_has_relationships(self, table_name: str) -> bool:
-        """
-        Check if a table has any incoming or outgoing relationships.
-        """
-        if not self.relationships:
-            return False
-        
-        for rel in self.relationships:
-            # Check if table is the "from" table
-            from_table = rel.get("from_table") or rel.get("from") or rel.get("fromTable")
-            if from_table == table_name:
-                return True
-            
-            # Check if table is the "to" table
-            to_table = rel.get("to_table") or rel.get("to") or rel.get("toTable")
-            if to_table == table_name:
-                return True
-        
-        return False
 
     def _relative_path(self, file_path: Path) -> str:
         """

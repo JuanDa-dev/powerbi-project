@@ -190,7 +190,7 @@ def load_all(data_dir: str) -> Dict[str, Any]:
         "relationships": _load(base / "relationships.json"),
         "measures":      _load(base / "measures.json"),
         "pages":         _load(base / "pages.json"),
-        "analysis":      _load(base / "analysis.json"),
+        "analysis":      _load(base / "classifications.json"),
         # Optional but important
         "column_usage":  _load(base / "column_usage.json"),
         "unused_measures": _load(base / "unused_measures.json"),
@@ -235,7 +235,7 @@ def compute_eda_metrics(data: Dict[str, Any]) -> Dict[str, Any]:
         for col in t.get("columns", []):
             type_dist[col.get("dataType", "unknown")] += 1
 
-    # Table classifications from analysis.json
+    # Table classifications from classifications.json
     table_classes = defaultdict(int)
     for tc in analysis.get("table_classifications", []):
         table_classes[tc.get("classification", "UNKNOWN")] += 1

@@ -102,7 +102,7 @@ class PageParser:
             return None
         
         # Get page metadata
-        display_name = page_id
+        display_name = None
         page_metadata = {}
         
         # Try to read page.json for display name
@@ -110,10 +110,14 @@ class PageParser:
         if page_file.exists():
             try:
                 page_data = json.loads(page_file.read_text(encoding='utf-8'))
-                display_name = page_data.get('displayName', page_id)
+                display_name = page_data.get('displayName')
                 page_metadata = page_data
-            except (json.JSONDecodeError, KeyError):
+            except (json.JSONDecodeError, KeyError, Exception):
                 pass
+        
+        # If no display name found, use page_id as fallback
+        if not display_name:
+            display_name = page_id
         
         # Parse visualizations
         visuals_dir = page_dir / "visuals"

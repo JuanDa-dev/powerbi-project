@@ -13,20 +13,20 @@ warnings.filterwarnings('ignore')
 
 
 class SchemaDistributionBuilder:
-    def __init__(self, analysis_json: str):
-        self.analysis_json = analysis_json
-        self.analysis = {}
+    def __init__(self, classifications_json: str):
+        self.classifications_json = classifications_json
+        self.classifications = {}
         self._load_data()
     
     def _load_data(self):
-        """Load analysis data from JSON file"""
-        with open(self.analysis_json, 'r', encoding='utf-8') as f:
-            self.analysis = json.load(f)
+        """Load classification data from JSON file"""
+        with open(self.classifications_json, 'r', encoding='utf-8') as f:
+            self.classifications = json.load(f)
     
     def create_visualization(self, output_file: str, figsize: tuple = (10, 8)):
         """Create donut chart visualization"""
         # Extract table type counts
-        summary = self.analysis.get('summary', {})
+        summary = self.classifications.get('summary', {})
         
         table_types = {
             'Fact Tables': summary.get('fact_tables', 0),
@@ -108,7 +108,7 @@ class SchemaDistributionBuilder:
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get schema distribution statistics"""
-        summary = self.analysis.get('summary', {})
+        summary = self.classifications.get('summary', {})
         
         return {
             'fact_tables': summary.get('fact_tables', 0),
@@ -121,20 +121,20 @@ class SchemaDistributionBuilder:
 
 
 def create_schema_distribution(
-    analysis_json: str,
+    classifications_json: str,
     output_file: str
 ) -> Dict[str, Any]:
     """
     Create schema type distribution visualization.
     
     Args:
-        analysis_json: Path to analysis.json
+        classifications_json: Path to classifications.json
         output_file: Output PNG file path
     
     Returns:
         Dict with file path and statistics
     """
-    builder = SchemaDistributionBuilder(analysis_json)
+    builder = SchemaDistributionBuilder(classifications_json)
     
     png_file = builder.create_visualization(output_file)
     stats = builder.get_statistics()

@@ -14,13 +14,13 @@ warnings.filterwarnings('ignore')
 
 
 class ComplexityHeatmapBuilder:
-    def __init__(self, tables_json: str, measures_json: str, analysis_json: str):
+    def __init__(self, tables_json: str, measures_json: str, classifications_json: str):
         self.tables_json = tables_json
         self.measures_json = measures_json
-        self.analysis_json = analysis_json
+        self.classifications_json = classifications_json
         self.tables = []
         self.measures = []
-        self.analysis = {}
+        self.classifications = {}
         self._load_data()
     
     def _load_data(self):
@@ -31,51 +31,47 @@ class ComplexityHeatmapBuilder:
         with open(self.measures_json, 'r', encoding='utf-8') as f:
             self.measures = json.load(f)
         
-        with open(self.analysis_json, 'r', encoding='utf-8') as f:
-            self.analysis = json.load(f)
+        with open(self.classifications_json, 'r', encoding='utf-8') as f:
+            self.classifications = json.load(f)
     
     def _build_complexity_matrix(self) -> tuple:
         """Build complexity metrics matrix"""
+        # Build relationships count by table from classifications data
+        relationships = self.classifications.get('relationship_analysis', {}).get('relationships', [])
+        rel_by_table = {}
+        for rel in relationships:
+            for table_name in [rel.get('from_table'), rel.get('to_table')]:
+                if table_name:
+                    rel_by_table[table_name] = rel_by_table.get(table_name, 0) + 1
+        
         # Get unique tables
-        table_names = [t['name'] for t in self.tables]
+        table_names = [t.get('name', t.get('table_name', '')) for t in self.tables]
         
         # Metrics: columns, measures, relationships, avg_measure_complexity
-        metrics = [
-            'Columns',
-            'Measures',
-            'Relationships',
-            'Avg Measure Complexity'
-        ]
+        metrics = ['Columns', 'Measures', 'Relationships', 'Avg Measure Complexity']
         
         # Initialize matrix
         matrix_data = []
         
         for table in self.tables:
-            table_name = table['name']
-            col_count = table['column_count']
-            measure_count = len(table['measures'])
-            
-            # Count relationships involving this table
-            rel_count = self.analysis.get('relationships_by_table', {}).get(table_name, 0)
+            table_name = table.get('name', table.get('table_name', ''))
+            col_count = table.get('column_count', len(table.get('columns', [])))
+            measure_count = len(table.get('measures', []))
+            rel_count = rel_by_table.get(table_name, 0)
             
             # Calculate average measure complexity for this table
-            table_measures = [m for m in self.measures if m['table'] == table_name]
+            table_measures = [m for m in self.measures if m.get('table') == table_name]
             avg_complexity = (
                 sum(m.get('complexity_score', 1) for m in table_measures) / len(table_measures)
                 if table_measures else 0
             )
             
             # Normalize values to 1-10 scale for heatmap
-            col_norm = min(col_count / 5, 10)  # Assuming max 50 columns
-            measure_norm = min(measure_count * 2, 10)  # Assuming max 5 measures
-            rel_norm = min(rel_count * 2, 10)  # Assuming max 5 relationships
+            col_norm = min(col_count / 5, 10)
+            measure_norm = min(measure_count * 2, 10)
+            rel_norm = min(rel_count * 2, 10)
             
-            matrix_data.append([
-                col_norm,
-                measure_norm,
-                rel_norm,
-                avg_complexity
-            ])
+            matrix_data.append([col_norm, measure_norm, rel_norm, avg_complexity])
         
         return table_names, metrics, matrix_data
     
@@ -137,7 +133,7 @@ class ComplexityHeatmapBuilder:
 def create_complexity_heatmap(
     tables_json: str,
     measures_json: str,
-    analysis_json: str,
+    classifications_json: str,
     output_file: str
 ) -> str:
     """
@@ -146,11 +142,11 @@ def create_complexity_heatmap(
     Args:
         tables_json: Path to tables.json
         measures_json: Path to measures.json
-        analysis_json: Path to analysis.json
+        classifications_json: Path to classifications.json
         output_file: Output PNG file path
     
     Returns:
         Path to generated PNG
     """
-    builder = ComplexityHeatmapBuilder(tables_json, measures_json, analysis_json)
+    builder = ComplexityHeatmapBuilder(tables_json, measures_json, classifications_json)
     return builder.create_visualization(output_file)

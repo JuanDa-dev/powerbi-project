@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 # Import parsers
@@ -22,8 +23,13 @@ from parsers.parse_datasources import parse_datasources
 from parsers.parse_analysis import parse_analysis
 from parsers.parse_column_usage import parse_column_usage
 
-# Import documentation generator (separated module)
-from scripts.documentation_generator import DocumentationGenerator
+# Import scoring engine
+from scoring.engine import ScoringEngine
+
+# Import documentation generators (from report module)
+from report.technical_documentation_generator import TechnicalDocumentationGenerator
+from report.extended_documentation_generator import ExtendedDocumentationGenerator
+from report.compliance_report_generator import ComplianceReportGenerator
 
 # Import visualizers (optional)
 try:
@@ -171,7 +177,7 @@ def main() -> None:
 
     print(f"Found {len(pbip_projects)} project(s) to process\n")
 
-    output_base_dir = Path.cwd() / "powerbi-project"
+    output_base_dir = Path.cwd() / "reports"
     output_base_dir.mkdir(exist_ok=True)
 
     total_processed = 0
@@ -217,13 +223,26 @@ def main() -> None:
         # -------------------------
         print("[STEP 1/3] Running parsers...")
 
-        # Parse relationships and measures first (needed for unused table detection)
+        # Parse relationships first (needed for tables analysis)
         print("  • Parsing relationships...", end=" ", flush=True)
         relationships = parse_relationships(str(tmdl_dir), str(data_dir / "relationships.json"))
         print(f"[OK] {len(relationships)} relationships")
 
+        # Pages parsing root depends on how the project was provided
+        # - If given *.SemanticModel, its parent should contain *.Report
+        # - If given extracted *.pbip folder, the folder itself should contain *.Report
+        if project_root.name.endswith(".SemanticModel"):
+            pages_root = project_root.parent
+        else:
+            pages_root = project_root
+
+        print("  • Parsing pages...", end=" ", flush=True)
+        pages = parse_pages(str(pages_root), str(data_dir / "pages.json"), project_name)
+        print(f"[OK] {len(pages)} pages")
+
+        # Parse measures with pages context for unused measure detection
         print("  • Parsing measures...", end=" ", flush=True)
-        measures_result = parse_measures(str(tmdl_dir), str(data_dir / "measures.json"))
+        measures_result = parse_measures(str(tmdl_dir), str(data_dir / "measures.json"), pages=pages)
         # parse_measures returns (measures, unused, analysis)
         measures = measures_result[0] if isinstance(measures_result, tuple) else measures_result
         print(f"[OK] {len(measures)} measures")
@@ -238,40 +257,94 @@ def main() -> None:
         column_usage = parse_column_usage(tables=tables, relationships=relationships, measures=measures, output_file=str(data_dir / "column_usage.json"))
         print(f"[OK] {len(column_usage)} tables analyzed")
 
-        # Pages parsing root depends on how the project was provided
-        # - If given *.SemanticModel, its parent should contain *.Report
-        # - If given extracted *.pbip folder, the folder itself should contain *.Report
-        if project_root.name.endswith(".SemanticModel"):
-            pages_root = project_root.parent
-        else:
-            pages_root = project_root
-
-        print("  • Parsing pages...", end=" ", flush=True)
-        pages = parse_pages(str(pages_root), str(data_dir / "pages.json"), project_name)
-        print(f"[OK] {len(pages)} pages")
-
         print("  • Parsing datasources...", end=" ", flush=True)
         datasources = parse_datasources(str(tmdl_dir), str(data_dir / "datasources.json"))
         print(f"[OK] {len(datasources)} datasources")
 
         print("  • Running analysis...", end=" ", flush=True)
-        parse_analysis(str(tmdl_dir), str(data_dir / "analysis.json"))
+        parse_analysis(str(tmdl_dir), str(data_dir / "classifications.json"))
         print("[OK]")
 
         # -------------------------
-        # STEP 2: Documentation
+        # STEP 2: Scoring
         # -------------------------
-        print("\n[STEP 2/3] Generating documentation...")
-
-        doc_gen = DocumentationGenerator(output_dir=output_dir, pbip_name=project_name)
-        doc_gen.generate_all()
-        print("  • Markdown documentation generated [OK]")
+        print("\n[STEP 2/4] Running model scoring...")
+        
+        try:
+            # Initialize engine with rules
+            rules_path = Path.cwd() / "scoring" / "rules.yaml"
+            if not rules_path.exists():
+                print(f"[WARN] Rules file not found at {rules_path}")
+                print("       Skipping scoring step...\n")
+            else:
+                engine = ScoringEngine(str(rules_path))
+                
+                # Score the model
+                print("  • Calculating scores...", end=" ", flush=True)
+                scoring_result = engine.score(str(data_dir))
+                
+                # Save result to JSON
+                result_path = data_dir / "scoring_result.json"
+                with open(result_path, "w", encoding="utf-8") as f:
+                    json.dump(scoring_result.to_dict(), f, indent=2)
+                
+                print("[OK]")
+                print(f"     Score: {scoring_result.global_score}/100 (Grade: {scoring_result.grade})")
+                print(f"     Issues: {scoring_result.critical_count} CRITICAL, {scoring_result.warning_count} WARNING, {scoring_result.info_count} INFO")
+                print(f"     Saved: {result_path}\n")
+        except Exception as e:
+            print(f"[ERROR] Scoring failed: {str(e)[:100]}")
+            print("       Continuing without scoring...\n")
 
         # -------------------------
-        # STEP 3: Visualizations
+        # STEP 3: Compliance Report
+        # -------------------------
+        try:
+            if (data_dir / "scoring_result.json").exists():
+                print("[STEP 3/5] Generating compliance report...")
+                
+                rules_path = Path.cwd() / "scoring" / "rules.yaml"
+                compliance_gen = ComplianceReportGenerator(
+                    data_dir=str(data_dir),
+                    output_dir=str(output_dir),
+                    pbip_name=project_name,
+                    rules_path=str(rules_path)
+                )
+                report_path = compliance_gen.save()
+                print(f"  • Compliance report generated [OK]")
+                print(f"     Saved: {report_path}\n")
+        except Exception as e:
+            print(f"[WARN] Compliance report generation failed: {str(e)[:100]}")
+            print("       Continuing...\n")
+
+        # -------------------------
+        # STEP 4: Documentation
+        # -------------------------
+        print("[STEP 4/5] Generating documentation...")
+
+        # Generate technical documentation
+        try:
+            tech_gen = TechnicalDocumentationGenerator(output_dir=output_dir, pbip_name=project_name)
+            tech_md = tech_gen.generate()
+            (output_dir / "reports" / "TECHNICAL_DOCUMENTATION.md").write_text(tech_md, encoding="utf-8")
+            print("  • Technical documentation generated [OK]")
+        except Exception as e:
+            print(f"[WARN] Technical documentation failed: {str(e)[:100]}")
+
+        # Generate extended documentation
+        try:
+            ext_gen = ExtendedDocumentationGenerator(output_dir=output_dir, pbip_name=project_name)
+            ext_md, filename = ext_gen.generate()
+            (output_dir / "reports" / filename).write_text(ext_md, encoding="utf-8")
+            print("  • Extended documentation generated [OK]")
+        except Exception as e:
+            print(f"[WARN] Extended documentation failed: {str(e)[:100]}")
+
+        # -------------------------
+        # STEP 5: Visualizations
         # -------------------------
         if VISUALIZERS_AVAILABLE:
-            print("\n[STEP 3/3] Generating visualizations...")
+            print("\n[STEP 5/5] Generating visualizations...")
 
             # 1. Relationship Graph
             try:
@@ -303,7 +376,7 @@ def main() -> None:
                 create_complexity_heatmap(
                     str(data_dir / "tables.json"),
                     str(data_dir / "measures.json"),
-                    str(data_dir / "analysis.json"),
+                    str(data_dir / "classifications.json"),
                     str(graphs_dir / "complexity_heatmap.png"),
                 )
                 print("[OK]")
@@ -314,7 +387,7 @@ def main() -> None:
             try:
                 print("  • Generating schema distribution chart...", end=" ", flush=True)
                 create_schema_distribution(
-                    str(data_dir / "analysis.json"),
+                    str(data_dir / "classifications.json"),
                     str(graphs_dir / "schema_type_donut.png"),
                 )
                 print("[OK]")
@@ -355,8 +428,12 @@ def main() -> None:
         print("     |-- measures.json")
         print("     |-- pages.json")
         print("     |-- datasources.json")
-        print("     `-- analysis.json\n")
+        print("     |-- classifications.json")
+        print("     |-- column_usage.json")
+        print("     |-- unused_measures.json")
+        print("     `-- scoring_result.json  [NEW]\n")
         print("  [DIR] reports/")
+        print("     |-- compliance_report.md  [NEW]")
         print("     |-- TECHNICAL_DOCUMENTATION.md")
         print("     `-- powerbi_analysis_*.md\n")
         if VISUALIZERS_AVAILABLE:

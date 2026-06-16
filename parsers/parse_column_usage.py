@@ -15,318 +15,139 @@ Outputs:
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Any, Set, Tuple
+from typing import Dict, List, Any, Set
+from collections import defaultdict
 
 
 class ColumnUsageParser:
-    def __init__(self, tmdl_dir: str):
-        self.tmdl_dir = Path(tmdl_dir)
+    def __init__(self):
         self.tables: List[Dict[str, Any]] = []
         self.relationships: List[Dict[str, Any]] = []
         self.measures: List[Dict[str, Any]] = []
+        self.pages: List[Dict[str, Any]] = []
 
     def parse(
         self,
         tables: List[Dict[str, Any]] = None,
         relationships: List[Dict[str, Any]] = None,
-        measures: List[Dict[str, Any]] = None
-    ) -> List[Dict[str, Any]]:
+        measures: List[Dict[str, Any]] = None,
+        pages: List[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Analyze column usage across the semantic model.
 
-        Args:
-            tables: List of tables from parse_tables (must include columns)
-            relationships: List of relationships from parse_relationships
-            measures: List of measures from parse_measures
-
         Returns:
-        [
-            {
-                "table_name": "...",
-                "total_columns": 25,
-                "used_columns": 22,
-                "unused_columns": 3,
-                "usage_percentage": 88,
-                "columns": [
-                    {
-                        "name": "column_name",
-                        "is_used": true,
-                        "used_in": ["relationship", "measure: MeasureName"],
-                        "is_hidden": false,
-                        "is_calculated": false,
-                        "reason": ""
-                    }
-                ]
+        {
+            "summary": {
+                "total_columns": 413,
+                "columns_used_in_measures": 276,
+                "columns_used_in_pages": 0,
+                "total_unique_columns_used": 276,
+                "total_unused": 137
+            },
+            "unused_by_table": {
+                "Calendar From": ["Month", "MonthName", ...],
+                "Calendar To": [...],
+                ...
             }
-        ]
+        }
         """
         self.tables = tables or []
         self.relationships = relationships or []
         self.measures = measures or []
+        self.pages = pages or []
 
-        column_usage = []
-
-        for table in self.tables:
-            table_name = table.get("name", "Unknown")
-            columns = table.get("columns", [])
-            
-            # Analyze each column in the table
-            table_column_usage = {
-                "table_name": table_name,
-                "total_columns": len(columns),
-                "used_columns": 0,
-                "unused_columns": 0,
-                "usage_percentage": 0,
-                "columns": []
-            }
-
-            for column in columns:
-                col_name = column.get("name", "")
-                is_hidden = column.get("is_hidden", False)
-                is_calculated = column.get("is_calculated", False)
-                is_key = column.get("is_key", False)
-
-                # Analyze where this column is used
-                used_in = self._find_column_usage(table_name, col_name)
-                is_used = self._is_column_used(
-                    table_name=table_name,
-                    column_name=col_name,
-                    used_in=used_in,
-                    is_hidden=is_hidden,
-                    is_calculated=is_calculated,
-                    is_key=is_key
-                )
-
-                reason = self._get_usage_reason(
-                    is_used=is_used,
-                    is_hidden=is_hidden,
-                    is_calculated=is_calculated,
-                    is_key=is_key,
-                    used_in=used_in
-                )
-
-                col_usage = {
-                    "name": col_name,
-                    "is_used": is_used,
-                    "used_in": used_in,
-                    "is_hidden": is_hidden,
-                    "is_calculated": is_calculated,
-                    "is_key": is_key,
-                    "reason": reason
-                }
-
-                table_column_usage["columns"].append(col_usage)
-
-                if is_used:
-                    table_column_usage["used_columns"] += 1
-                else:
-                    table_column_usage["unused_columns"] += 1
-
-            # Calculate usage percentage
-            if table_column_usage["total_columns"] > 0:
-                table_column_usage["usage_percentage"] = round(
-                    100 * table_column_usage["used_columns"] / table_column_usage["total_columns"]
-                )
-
-            column_usage.append(table_column_usage)
-
-        return column_usage
-
-    def _find_column_usage(self, table_name: str, column_name: str) -> List[str]:
-        """
-        Find all places where a column is used.
-
-        Returns list of usage locations like:
-        - "relationship: from_table.from_column"
-        - "measure: MeasureName"
-        - "calculated_column: ColumnName"
-        - "partition: PartitionName"
-        """
-        usage = []
-
-        # Check in relationships
-        usage.extend(self._find_in_relationships(table_name, column_name))
-
-        # Check in measures
-        usage.extend(self._find_in_measures(table_name, column_name))
-
-        # Check in other columns' expressions
-        usage.extend(self._find_in_column_expressions(table_name, column_name))
-
-        # Check in partitions
-        usage.extend(self._find_in_partitions(table_name, column_name))
-
-        return usage
-
-    def _find_in_relationships(self, table_name: str, column_name: str) -> List[str]:
-        """Find if column is used in relationships."""
-        usage = []
-
-        for rel in self.relationships:
-            from_table = rel.get("from_table", "")
-            from_column = rel.get("from_column", "")
-            to_table = rel.get("to_table", "")
-            to_column = rel.get("to_column", "")
-
-            if from_table == table_name and from_column == column_name:
-                usage.append(f"relationship: {from_table}.{from_column} -> {to_table}.{to_column}")
-
-            if to_table == table_name and to_column == column_name:
-                usage.append(f"relationship: {from_table}.{from_column} -> {to_table}.{to_column}")
-
-        return usage
-
-    def _find_in_measures(self, table_name: str, column_name: str) -> List[str]:
-        """Find if column is used in measure expressions."""
-        usage = []
-
+        # Collect columns used in measures
+        columns_used_in_measures = set()
         for measure in self.measures:
-            measure_name = measure.get("name", "")
-            table = measure.get("table", "")
-            expression = measure.get("expression", "")
+            columns_used_in_measures.update(measure.get('column_dependencies', []))
 
-            # Only check measures in this table
-            if table != table_name:
-                continue
+        # Collect columns used in pages
+        columns_used_in_pages = set()
+        for page in self.pages:
+            self._collect_page_fields(page, columns_used_in_pages)
 
-            # Look for column reference patterns in DAX
-            if self._column_referenced_in_expression(column_name, expression):
-                usage.append(f"measure: {measure_name}")
+        columns_used_total = columns_used_in_measures | columns_used_in_pages
 
-        return usage
-
-    def _find_in_column_expressions(self, table_name: str, column_name: str) -> List[str]:
-        """Find if column is used in other calculated column expressions."""
-        usage = []
-
+        # Build column catalog from tables
+        columns_by_table = defaultdict(set)
+        table_usage = []
         for table in self.tables:
-            if table.get("name", "") != table_name:
-                continue
+            table_name = table.get('name', 'Unknown')
+            for col in table.get('columns', []):
+                col_name = col.get('name', '')
+                if col_name:
+                    columns_by_table[table_name].add(col_name)
 
-            for column in table.get("columns", []):
-                if column.get("name", "") == column_name:
-                    continue  # Skip self-reference
-
-                expression = column.get("expression", "")
-                if expression and self._column_referenced_in_expression(column_name, expression):
-                    usage.append(f"calculated_column: {column.get('name', '')}")
-
-        return usage
-
-    def _find_in_partitions(self, table_name: str, column_name: str) -> List[str]:
-        """Find if column is used in partition definitions."""
-        usage = []
-
+        # Build per-table usage stats
         for table in self.tables:
-            if table.get("name", "") != table_name:
-                continue
+            table_name = table.get('name', 'Unknown')
+            table_columns = columns_by_table.get(table_name, set())
+            used_columns = sorted(table_columns & columns_used_total)
+            unused_columns = sorted(table_columns - columns_used_total)
+            total_columns = len(table_columns)
+            used_count = len(used_columns)
+            unused_count = len(unused_columns)
+            usage_percentage = round(100 * used_count / total_columns) if total_columns else 0
 
-            for partition in table.get("partitions", []):
-                source_preview = partition.get("source_preview", "")
-                if source_preview and self._column_referenced_in_expression(column_name, source_preview):
-                    usage.append(f"partition: {partition.get('name', '')}")
+            table_usage.append({
+                "table_name": table_name,
+                "total_columns": total_columns,
+                "used_columns": used_count,
+                "unused_columns": unused_count,
+                "usage_percentage": usage_percentage,
+                "used_column_names": used_columns,
+                "unused_column_names": unused_columns,
+                "has_measures": table.get("measure_count", 0) > 0,
+                "has_calculated_columns": table.get("calculated_column_count", 0) > 0,
+                "measure_count": table.get("measure_count", 0),
+                "calculated_column_count": table.get("calculated_column_count", 0),
+                "table_kind": table.get("table_kind", "UNKNOWN"),
+            })
 
-        return usage
+        # Find unused columns per table
+        unused_by_table = {}
+        for table_name, cols in columns_by_table.items():
+            unused = cols - columns_used_total
+            if unused:
+                unused_by_table[table_name] = sorted(unused)
 
-    @staticmethod
-    def _column_referenced_in_expression(column_name: str, expression: str) -> bool:
-        """
-        Check if a column is referenced in an expression.
-
-        Looks for patterns like:
-        - [ColumnName]
-        - 'TableName'[ColumnName]
-        - Spaces around column name
-        """
-        if not expression:
-            return False
-
-        # Pattern 1: [ColumnName]
-        bracket_pattern = rf"\[{re.escape(column_name)}\]"
-        if re.search(bracket_pattern, expression, re.IGNORECASE):
-            return True
-
-        # Pattern 2: 'TableName'[ColumnName]
-        qualified_pattern = rf"\'\w+\'\[{re.escape(column_name)}\]"
-        if re.search(qualified_pattern, expression, re.IGNORECASE):
-            return True
-
-        # Pattern 3: Column name as word (for unqualified DAX)
-        # Only if surrounded by non-word characters
-        word_pattern = rf"\b{re.escape(column_name)}\b"
-        if re.search(word_pattern, expression, re.IGNORECASE):
-            return True
-
-        return False
-
-    @staticmethod
-    def _is_column_used(
-        table_name: str,
-        column_name: str,
-        used_in: List[str],
-        is_hidden: bool,
-        is_calculated: bool,
-        is_key: bool
-    ) -> bool:
-        """
-        Determine if a column should be considered "used".
-
-        Rules:
-        1. If explicitly used somewhere (used_in is not empty) -> True
-        2. If it's a key column -> True (likely used implicitly)
-        3. If it's hidden -> True (intentional, not cleanup candidate)
-        4. If it's calculated -> True (created for a purpose)
-        5. Otherwise -> False
-        """
-        # Explicitly used
-        if used_in:
-            return True
-
-        # Key columns are always "used" implicitly
-        if is_key:
-            return True
-
-        # Hidden columns are intentional
-        if is_hidden:
-            return True
-
-        # Calculated columns are created for a purpose
-        if is_calculated:
-            return True
-
-        # Regular column with no usage = unused
-        return False
+        return {
+            "summary": {
+                "total_columns": sum(len(c) for c in columns_by_table.values()),
+                "columns_used_in_measures": len(columns_used_in_measures),
+                "columns_used_in_pages": len(columns_used_in_pages),
+                "total_unique_columns_used": len(columns_used_total),
+                "total_unused": sum(len(c) for c in unused_by_table.values()),
+                "tables_with_full_usage": len([row for row in table_usage if row["usage_percentage"] == 100 and row["total_columns"] > 0]),
+                "average_table_usage_percentage": round(sum(row["usage_percentage"] for row in table_usage) / len(table_usage), 1) if table_usage else 0.0,
+            },
+            "table_usage": table_usage,
+            "unused_by_table": unused_by_table,
+        }
 
     @staticmethod
-    def _get_usage_reason(
-        is_used: bool,
-        is_hidden: bool,
-        is_calculated: bool,
-        is_key: bool,
-        used_in: List[str]
-    ) -> str:
-        """Generate human-readable reason for column status."""
-        if used_in:
-            return ""  # Used columns need no reason
-
-        if is_hidden:
-            return "Hidden column (intentional)"
-
-        if is_calculated:
-            return "Calculated column (helper table)"
-
-        if is_key:
-            return "Key column (implicit usage)"
-
-        return "Not referenced in model"
+    def _collect_page_fields(obj: Any, columns_set: Set[str]) -> None:
+        """Recursively collect [ColumnName] references from page objects."""
+        if isinstance(obj, str):
+            if '[' in obj and ']' in obj:
+                matches = re.findall(r'\[([^\]]+)\]', obj)
+                columns_set.update(matches)
+        elif isinstance(obj, dict):
+            for v in obj.values():
+                ColumnUsageParser._collect_page_fields(v, columns_set)
+        elif isinstance(obj, list):
+            for item in obj:
+                ColumnUsageParser._collect_page_fields(item, columns_set)
 
 
 def parse_column_usage(
     tables: List[Dict[str, Any]] = None,
     relationships: List[Dict[str, Any]] = None,
     measures: List[Dict[str, Any]] = None,
+    pages: List[Dict[str, Any]] = None,
     output_file: str = None
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """
     Main function to analyze column usage.
 
@@ -334,22 +155,23 @@ def parse_column_usage(
         tables: List of tables from parse_tables
         relationships: List of relationships from parse_relationships
         measures: List of measures from parse_measures
+        pages: List of pages from parse_pages
         output_file: Optional output file path
 
     Returns:
-        List of table column usage analysis
+        Column usage analysis dict
     """
-    parser = ColumnUsageParser("")
+    parser = ColumnUsageParser()
     column_usage = parser.parse(
         tables=tables,
         relationships=relationships,
-        measures=measures
+        measures=measures,
+        pages=pages
     )
 
     if output_file:
         output_path = Path(output_file)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(column_usage, f, indent=2, ensure_ascii=False)
 
@@ -363,5 +185,6 @@ if __name__ == "__main__":
     print("  - tables from parse_tables()")
     print("  - relationships from parse_relationships()")
     print("  - measures from parse_measures()")
+    print("  - pages from parse_pages()")
     print("")
     print("Usage: python main.py <pbip_path>")

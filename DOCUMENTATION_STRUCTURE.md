@@ -204,7 +204,7 @@ Both PDFs include professional styling:
 ## 🚀 Next Steps
 
 1. Run the analysis: `python main.py ../RecursosFuente/OnlineBaseline.pbip`
-2. Check the generated files in `powerbi-project/reports/`
+2. Check the generated files in `reports/project-name/`
 3. Open the PDF files to review
 4. Share or archive as needed
 
